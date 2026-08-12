@@ -6,16 +6,13 @@ Similar to SuperWhisper and Whisper Desktop
 """
 
 import sys
-import os
 import signal
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QTimer
+from pathlib import Path
 
-# Add src directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from gui.main_window import MainWindow
-from config.settings import SettingsManager
+from .gui.main_window import MainWindow
 import logging
 
 # Configure logging
@@ -30,7 +27,7 @@ class WhisperDictationApp:
     
     def __init__(self):
         self.app = QApplication(sys.argv)
-        self.settings = SettingsManager()
+        self.app.setQuitOnLastWindowClosed(False)
         
         # Set application info
         self.app.setApplicationName("Whisper Linux Dictation")
@@ -38,14 +35,14 @@ class WhisperDictationApp:
         self.app.setOrganizationName("whisper-linux-dictation")
         
         # Load icon if available
-        self.icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.png')
-        if os.path.exists(self.icon_path):
-            self.app.setWindowIcon(QIcon(self.icon_path))
+        self.icon_path = Path(__file__).with_name('icon.png')
+        if self.icon_path.exists():
+            self.app.setWindowIcon(QIcon(str(self.icon_path)))
         
         # Create main window
         self.main_window = MainWindow()
-        if os.path.exists(self.icon_path):
-            self.main_window.setWindowIcon(QIcon(self.icon_path))
+        if self.icon_path.exists():
+            self.main_window.setWindowIcon(QIcon(str(self.icon_path)))
         
         # Application state
         self.is_running = False
@@ -53,6 +50,7 @@ class WhisperDictationApp:
         
         # Setup tray icon and context menu
         self._setup_tray_icon()
+        self.app.aboutToQuit.connect(self.main_window.shutdown)
         
         # Show main GUI window on start
         self.main_window.show()
@@ -64,8 +62,8 @@ class WhisperDictationApp:
     def _setup_tray_icon(self):
         """Setup system tray icon for background mode"""
         try:
-            if os.path.exists(self.icon_path):
-                self.tray_icon.setIcon(QIcon(self.icon_path))
+            if self.icon_path.exists():
+                self.tray_icon.setIcon(QIcon(str(self.icon_path)))
             else:
                 self.tray_icon.setIcon(QIcon())
             
@@ -104,23 +102,21 @@ class WhisperDictationApp:
         """Start the application event loop"""
         try:
             logger.info("Starting main event loop")
-            sys.exit(self.app.exec())
+            return self.app.exec()
         except Exception as e:
             logger.error(f"Error in main loop: {e}")
-            sys.exit(1)
+            return 1
 
 
 def main():
     """Main entry point for the application"""
-    
+    app = None
+
     # Handle graceful shutdown
     def signal_handler(signum, frame):
         logger.info("Received shutdown signal")
-        app = WhisperDictationApp()
-        if hasattr(app, 'main_window') and app.main_window:
-            app.main_window.close()
-        
-        sys.exit(0)
+        if app is not None:
+            app.app.quit()
     
     # Register signal handlers
     signal.signal(signal.SIGINT, signal_handler)
@@ -129,10 +125,14 @@ def main():
     try:
         # Create and run the application
         app = WhisperDictationApp()
-        app.run()
+        # Let Python process SIGINT while the Qt event loop is running.
+        signal_timer = QTimer()
+        signal_timer.timeout.connect(lambda: None)
+        signal_timer.start(250)
+        return app.run()
     except KeyboardInterrupt:
         logger.info("Application interrupted by user")
-        sys.exit(0)
+        return 0
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         raise

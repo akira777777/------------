@@ -5,7 +5,6 @@ GUI implementation using PyQt6
 """
 
 import sys
-import os
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
@@ -18,12 +17,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QDateTime, QObject, QThread
 from PyQt6.QtGui import QIcon, QFont
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from config.settings import SettingsManager, get_settings
-from engine.whisper_engine import WhisperEngine
-from audio.input_handler import AudioInputHandler
+from ..config.settings import get_settings
+from ..engine.whisper_engine import WhisperEngine
+from ..audio.input_handler import AudioInputHandler
 
 
 class SettingsDialog(QDialog):
@@ -148,19 +144,30 @@ class GlobalHotkeyListener(QObject):
         super().__init__()
         self.key_name = key_name
         self.listener = None
+        self._pressed = False
+
+    def _matches(self, key):
+        configured = self.key_name.strip().lower()
+        special_key = getattr(keyboard.Key, configured, None)
+        if special_key is not None:
+            return key == special_key
+        return getattr(key, 'char', '').lower() == configured
         
     def start(self):
         def on_press(key):
             try:
-                if key == keyboard.Key.f12:
-                    self.hotkey_triggered.emit()
-                elif hasattr(key, 'name') and key.name and key.name.upper() == self.key_name.upper():
+                if self._matches(key) and not self._pressed:
+                    self._pressed = True
                     self.hotkey_triggered.emit()
             except Exception:
                 pass
+
+        def on_release(key):
+            if self._matches(key):
+                self._pressed = False
                 
         try:
-            self.listener = keyboard.Listener(on_press=on_press)
+            self.listener = keyboard.Listener(on_press=on_press, on_release=on_release)
             self.listener.daemon = True
             self.listener.start()
         except Exception as e:
@@ -172,6 +179,8 @@ class GlobalHotkeyListener(QObject):
                 self.listener.stop()
             except Exception:
                 pass
+            self.listener = None
+            self._pressed = False
 
 
 class TranscriptionWorker(QThread):
@@ -207,6 +216,7 @@ class MainWindow(QMainWindow):
         self.is_listening = False
         self.current_text = ""
         self.worker = None
+        self._shutting_down = False
         
         # Timer for status updates
         self.status_timer = QTimer()
@@ -228,10 +238,22 @@ class MainWindow(QMainWindow):
         self.hotkey_listener.start()
 
     def closeEvent(self, event):
-        """Clean up threads on close"""
-        if hasattr(self, 'hotkey_listener') and self.hotkey_listener:
+        """Keep the application available from the system tray."""
+        if self._shutting_down:
+            event.accept()
+        else:
+            self.hide()
+            event.ignore()
+
+    def shutdown(self):
+        """Release audio and background resources before application exit."""
+        self._shutting_down = True
+        if self.audio_handler.is_recording:
+            self.audio_handler.stop_recording()
+        if self.hotkey_listener:
             self.hotkey_listener.stop()
-        super().closeEvent(event)
+        if self.worker and self.worker.isRunning():
+            self.worker.wait(5000)
     
     def _create_ui(self):
         """Create main window UI with Tabs and Notepad/History panel"""
@@ -445,11 +467,15 @@ class MainWindow(QMainWindow):
         """Start real-time dictation mode"""
         try:
             # Start audio capture
-            self.audio_handler.start_recording()
-            
-            # Load model if not already loaded
             if not self.whisper_engine.is_loaded:
                 self._load_model()
+            if not self.whisper_engine.is_loaded:
+                self.detail_label.setText("Whisper model is not available")
+                return
+
+            if not self.audio_handler.start_recording():
+                self.detail_label.setText("Could not open the microphone")
+                return
             
             # Update UI state
             self.is_listening = True
@@ -531,6 +557,7 @@ class MainWindow(QMainWindow):
             self.worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
             self.worker.finished.connect(self._on_transcription_completed)
             self.worker.failed.connect(self._on_error)
+            self.worker.finished.connect(self.worker.deleteLater)
             self.worker.start()
         except Exception as e:
             print(f"Error starting transcription worker: {e}")
@@ -545,12 +572,12 @@ class MainWindow(QMainWindow):
             self.status_label.setStyleSheet("color: #4CAF50;")
             self.indicator_frame.setStyleSheet("QFrame { background-color: #4CAF50; }")
             
-            # Copy to clipboard
-            clipboard = QApplication.clipboard()
-            clipboard.setText(cleaned)
+            should_copy = self.settings.get('auto_copy_to_clipboard', True)
+            should_inject = self.settings.get('inject_into_focused_window', True)
+            if should_copy or should_inject:
+                QApplication.clipboard().setText(cleaned)
 
-            # Auto-paste into focused active window if enabled
-            if self.settings.get('inject_into_focused_window', True):
+            if should_inject:
                 try:
                     import pyautogui
                     import time
@@ -569,6 +596,12 @@ class MainWindow(QMainWindow):
         try:
             dialog = SettingsDialog(self)
             if dialog.exec() == 1:  # QDialog.Accepted
+                self.hotkey_listener.stop()
+                trigger_key = self.settings.get('trigger_key', 'F12')
+                self.hotkey_listener = GlobalHotkeyListener(trigger_key)
+                self.hotkey_listener.hotkey_triggered.connect(self._toggle_dictation)
+                self.hotkey_listener.start()
+                self.start_btn.setText(f"Start Dictation ({trigger_key})")
                 # Reload model with new settings
                 self._load_model()
         
@@ -721,7 +754,7 @@ class MainWindow(QMainWindow):
     def _update_status(self):
         """Periodic status update (for VAD monitoring)"""
         try:
-            if self.is_listening and self.audio_handler.is_recording():
+            if self.is_listening and self.audio_handler.is_recording:
                 volume = self.audio_handler.get_volume_level()
                 
                 # Update indicator color based on activity
