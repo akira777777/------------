@@ -7,6 +7,10 @@ Captures microphone input using sounddevice and PulseAudio/PipeWire
 import sounddevice as sd
 import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal, QThread
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class AudioInputHandler(QObject):
@@ -31,7 +35,7 @@ class AudioInputHandler(QObject):
         # State tracking
         self.is_recording = False
         self.audio_stream = None
-        self.last_samples = np.zeros(self.channels, dtype=np.float32)
+        self.last_samples = np.zeros(0, dtype=np.float32)
         self.recorded_chunks = []
         
         # Volume history for smoothing
@@ -42,23 +46,29 @@ class AudioInputHandler(QObject):
         """Start capturing audio from microphone"""
         try:
             if self.is_recording:
-                return
-            
+                return True
+
             self.recorded_chunks = []
-            print(f"Starting audio recording at {self.sample_rate}Hz, {self.channels} channel(s)")
+            self.volume_history = []
+            logger.info(
+                "Starting audio recording at %sHz, %s channel(s)",
+                self.sample_rate,
+                self.channels,
+            )
             
             # Create stream callback
-            def audio_callback(indata, *args):
-                status = args[-1] if len(args) > 2 else None
+            def audio_callback(indata, frames, time_info, status):
                 if status:
-                    print(f"Audio status: {status}")
+                    logger.warning("Audio input status: %s", status)
                 
                 # Calculate volume for VAD
                 if len(indata) > 0:
                     chunk = indata.copy().flatten()
                     self.recorded_chunks.append(chunk)
                     
-                    volume = np.mean(np.abs(indata)) / (self.sample_rate * self.channels)
+                    # RMS is a stable representation of signal energy. Multiplying by
+                    # ten maps typical microphone speech into a useful 0..1 UI range.
+                    volume = min(float(np.sqrt(np.mean(chunk ** 2))) * 10.0, 1.0)
                     
                     # Smooth the volume reading
                     self.volume_history.append(volume)
@@ -66,10 +76,8 @@ class AudioInputHandler(QObject):
                         self.volume_history.pop(0)
                     
                     avg_volume = np.mean(self.volume_history)
-                    max_vol = max(avg_volume, 1.0)  # Normalize
-                    
                     self.last_samples = indata.copy()
-                    self.volume_changed.emit(max_vol)
+                    self.volume_changed.emit(float(avg_volume))
                     self.sample_received.emit(indata.copy())
             
             # Create and start the audio stream
@@ -83,21 +91,30 @@ class AudioInputHandler(QObject):
             
             self.audio_stream.start()
             self.is_recording = True
-            
-            print("Audio recording started successfully")
+
+            logger.info("Audio recording started successfully")
+            return True
             
         except Exception as e:
             error_msg = f"Error starting audio stream: {e}"
-            print(error_msg)
+            self.is_recording = False
+            if self.audio_stream is not None:
+                try:
+                    self.audio_stream.close()
+                except Exception:
+                    pass
+                self.audio_stream = None
+            logger.exception(error_msg)
             self.error_occurred.emit(error_msg)
+            return False
     
     def stop_recording(self):
         """Stop capturing audio from microphone"""
         try:
             if not self.is_recording:
-                return
-            
-            print("Stopping audio recording...")
+                return np.zeros(0, dtype=np.float32)
+
+            logger.info("Stopping audio recording")
             
             # Stop the stream
             if self.audio_stream:
@@ -106,19 +123,28 @@ class AudioInputHandler(QObject):
                 self.audio_stream = None
             
             self.is_recording = False
-            print("Audio recording stopped")
+            logger.info("Audio recording stopped")
             
             # Process accumulated audio
             if self.recorded_chunks:
                 full_audio = np.concatenate(self.recorded_chunks)
                 self.recorded_chunks = []
-                print(f"Emitting {len(full_audio)} audio samples ({len(full_audio)/self.sample_rate:.2f}s) for transcription")
+                logger.info(
+                    "Captured %s audio samples (%.2fs)",
+                    len(full_audio),
+                    len(full_audio) / self.sample_rate,
+                )
                 self.recording_finished.emit(full_audio)
+                return full_audio
+
+            return np.zeros(0, dtype=np.float32)
             
         except Exception as e:
             error_msg = f"Error stopping audio stream: {e}"
-            print(error_msg)
+            self.is_recording = False
+            logger.exception(error_msg)
             self.error_occurred.emit(error_msg)
+            return np.zeros(0, dtype=np.float32)
     
     def get_last_samples(self):
         """Get the last captured audio samples"""
@@ -129,12 +155,7 @@ class AudioInputHandler(QObject):
         if not self.volume_history:
             return 0.0
         
-        avg = np.mean(self.volume_history)
-        max_val = max(avg, 1.0)
-        
-        # Normalize to 0-1 range
-        normalized = min(avg / max_val, 1.0)
-        return normalized
+        return min(float(np.mean(self.volume_history)), 1.0)
     
     def is_speaking(self, threshold=0.5):
         """Check if current volume indicates speaking"""

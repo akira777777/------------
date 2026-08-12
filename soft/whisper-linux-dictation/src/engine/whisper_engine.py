@@ -5,7 +5,7 @@ Uses faster-whisper for optimized speech recognition
 """
 
 import numpy as np
-from PyQt6.QtCore import QObject, pyqtSignal, QThread, QMutex, QMutexLocker
+from PyQt6.QtCore import QObject, pyqtSignal, QThread
 from faster_whisper import WhisperModel
 import logging
 
@@ -43,6 +43,7 @@ class WhisperEngine(QObject):
         """Load the Whisper model (thread-safe)"""
         
         try:
+            self.is_loaded = False
             logger.info(f"Loading Whisper model: {model_size} ({language})")
             
             # Determine device for inference
@@ -57,16 +58,21 @@ class WhisperEngine(QObject):
             self.model = WhisperModel(
                 model_size_or_path=model_size,
                 device=device,
-                compute_type='float32',  # float32 is more stable on CPU
+                compute_type='float16' if device == 'cuda' else 'int8',
                 cpu_threads=4,
                 num_workers=1  # Single worker for real-time processing
             )
                         
             self.is_loaded = True
+            self.model_size = model_size
+            self.language = language
+            self.use_cuda = device == 'cuda'
             self.status_changed.emit(f"Model loaded: {model_size} on {device}")
             logger.info(f"Whisper model '{model_size}' loaded successfully")
             
         except Exception as e:
+            self.model = None
+            self.is_loaded = False
             error_msg = f"Error loading Whisper model: {e}"
             logger.error(error_msg)
             self.status_changed.emit("Error loading model")
@@ -91,7 +97,15 @@ class WhisperEngine(QObject):
         Returns:
             str: Transcribed text
         """
+        full_text = ''
         try:
+            if not self.is_loaded or self.model is None:
+                raise RuntimeError("Whisper model is not loaded")
+
+            audio_samples = np.asarray(audio_samples, dtype=np.float32).flatten()
+            if audio_samples.size == 0:
+                return ''
+
             self.is_processing = True
             self.status_changed.emit("Processing...")
             
@@ -104,13 +118,12 @@ class WhisperEngine(QObject):
                 language=lang if lang != 'auto' else None,
                 task='transcribe',
                 beam_size=5,
-                buffer_size=16000,  # Look ahead buffer
                 word_timestamps=True,
                 vad_filter=True,    # Use VAD to reduce noise
                 vad_parameters=dict(
                     min_silence_duration_ms=300,  # 300ms silence
                     threshold=0.5,
-                    max_speech_seconds=60,
+                    max_speech_duration_s=60,
                 ),
             )
             
@@ -121,7 +134,6 @@ class WhisperEngine(QObject):
             
             if full_text.strip():
                 logger.debug(f"Transcribed: {full_text[:100]}...")
-                self.transcription_ready.emit(full_text)
             else:
                 logger.warning("Empty transcription result")
                 
@@ -132,7 +144,7 @@ class WhisperEngine(QObject):
             self.status_changed.emit(f"Processing error: {str(e)[:50]}")
             self.error_occurred.emit(error_msg)
         
-        return full_text
+        return full_text.strip()
     
     def transcribe_stream(self, audio_callback):
         """
@@ -183,7 +195,7 @@ class WhisperProcessingThread(QThread):
                 if len(samples) > 0 and len(samples) >= 16000:
                     # Process transcription in background thread
                     text = self.engine.transcribe_audio(samples, language=self.engine.language)
-                    
+
                     if text.strip():
                         # Emit signal to GUI
                         self.engine.transcription_ready.emit(text)
