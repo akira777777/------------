@@ -1,7 +1,7 @@
 import unittest
 
+from PyQt6.QtCore import QPoint
 from PyQt6.QtWidgets import QApplication
-
 from whisper_linux_dictation.gui.main_window import RecordingIndicator
 
 
@@ -39,6 +39,24 @@ class FloatingPanelTests(unittest.TestCase):
 
         self.assertFalse(self.panel.start_stop_button.isEnabled())
         self.assertEqual(self.panel.start_stop_button.text(), 'Processing…')
+
+    def test_drag_handle_moves_panel_and_emits_saved_position(self):
+        saved_positions = []
+        self.panel.position_changed.connect(
+            lambda x, y: saved_positions.append((x, y))
+        )
+        self.panel.move(100, 100)
+
+        self.panel.drag_handle.drag_started.emit(QPoint(110, 110))
+        self.panel.drag_handle.drag_moved.emit(QPoint(160, 145))
+        self.panel.drag_handle.drag_finished.emit()
+
+        self.assertEqual((self.panel.x(), self.panel.y()), (150, 135))
+        self.assertEqual(saved_positions, [(150, 135)])
+
+    def test_panel_uses_compact_dimensions(self):
+        self.assertLessEqual(self.panel.width(), 380)
+        self.assertLessEqual(self.panel.height(), 82)
 
 
 if __name__ == '__main__':

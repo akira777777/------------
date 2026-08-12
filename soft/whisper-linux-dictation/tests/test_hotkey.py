@@ -4,6 +4,7 @@ from pynput import keyboard, mouse
 from whisper_linux_dictation.gui.main_window import (
     NUMPAD_ENTER_X11_KEYSYM,
     GlobalHotkeyListener,
+    WaylandHotkeyListener,
 )
 
 
@@ -30,6 +31,22 @@ class HotkeyTests(unittest.TestCase):
 
         self.assertTrue(listener.is_numpad_enter)
         self.assertFalse(listener.is_hold_to_talk)
+
+    def test_wayland_numpad_enter_uses_distinct_linux_input_code(self):
+        from evdev import ecodes
+
+        listener = WaylandHotkeyListener('NumpadEnter')
+        listener._target_code = listener._configured_evdev_code()
+        triggers = []
+        listener.hotkey_triggered.connect(lambda: triggers.append(True))
+
+        listener._handle_evdev_key(ecodes.KEY_ENTER, 1)
+        listener._handle_evdev_key(ecodes.KEY_ENTER, 0)
+        listener._handle_evdev_key(ecodes.KEY_KPENTER, 1)
+        listener._handle_evdev_key(ecodes.KEY_KPENTER, 0)
+
+        self.assertEqual(listener._target_code, ecodes.KEY_KPENTER)
+        self.assertEqual(triggers, [True])
 
 
 if __name__ == '__main__':

@@ -74,6 +74,7 @@ setup(
         'silero-vad>=5.0.0',
         'pyautogui>=0.9.54',
         'pynput>=1.7.7',
+        'evdev>=1.7.1',
         'python-dotenv>=1.0.0',
     ],
     

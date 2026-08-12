@@ -6,9 +6,11 @@ GUI implementation using PyQt6
 
 import logging
 import os
+import selectors
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import ClassVar
 
@@ -347,6 +349,43 @@ def paste_clipboard_text():
     pyautogui.hotkey('ctrl', 'v')
 
 
+class DragHandle(QLabel):
+    """Small, explicit mouse handle used to move the floating controller."""
+
+    drag_started = pyqtSignal(QPoint)
+    drag_moved = pyqtSignal(QPoint)
+    drag_finished = pyqtSignal()
+
+    def __init__(self):
+        super().__init__('⠇')
+        self.setFixedWidth(12)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setCursor(Qt.CursorShape.SizeAllCursor)
+        self.setToolTip('Drag to move')
+        self.setStyleSheet('color: #8B98A9; font-size: 14px;')
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_started.emit(event.globalPosition().toPoint())
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self.drag_moved.emit(event.globalPosition().toPoint())
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_finished.emit()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+
 class RecordingIndicator(QWidget):
     """Persistent focus-safe controller for the dictation lifecycle."""
 
@@ -372,7 +411,7 @@ class RecordingIndicator(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.setFixedSize(430, 154)
+        self.setFixedSize(380, 82)
         self.setWindowTitle('Whisper controls')
 
         self._elapsed_seconds = 0
@@ -387,22 +426,28 @@ class RecordingIndicator(QWidget):
         self.card = QFrame()
         self.card.setObjectName('recordingCard')
         card_layout = QVBoxLayout(self.card)
-        card_layout.setContentsMargins(16, 13, 16, 14)
-        card_layout.setSpacing(9)
+        card_layout.setContentsMargins(10, 8, 10, 8)
+        card_layout.setSpacing(5)
 
         status_row = QHBoxLayout()
-        status_row.setSpacing(11)
+        status_row.setSpacing(8)
+
+        self.drag_handle = DragHandle()
+        self.drag_handle.drag_started.connect(self._start_drag)
+        self.drag_handle.drag_moved.connect(self._move_drag)
+        self.drag_handle.drag_finished.connect(self._finish_drag)
+        status_row.addWidget(self.drag_handle)
 
         waveform = QWidget()
-        waveform.setFixedSize(38, 30)
+        waveform.setFixedSize(30, 26)
         waveform_layout = QHBoxLayout(waveform)
         waveform_layout.setContentsMargins(0, 0, 0, 0)
-        waveform_layout.setSpacing(4)
+        waveform_layout.setSpacing(3)
         waveform_layout.setAlignment(Qt.AlignmentFlag.AlignBottom)
         self.bars = []
-        for height in (8, 16, 24, 12):
+        for height in (7, 13, 20, 10):
             bar = QFrame()
-            bar.setFixedSize(6, height)
+            bar.setFixedSize(5, height)
             self.bars.append(bar)
             waveform_layout.addWidget(bar, alignment=Qt.AlignmentFlag.AlignBottom)
         status_row.addWidget(waveform)
@@ -410,38 +455,36 @@ class RecordingIndicator(QWidget):
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
         self.state_label = QLabel('Recording')
-        self.state_label.setFont(QFont('Sans Serif', 11, QFont.Weight.DemiBold))
+        self.state_label.setFont(QFont('Sans Serif', 9, QFont.Weight.DemiBold))
         self.hint_label = QLabel('Esc: cancel')
-        self.hint_label.setFont(QFont('Sans Serif', 9))
+        self.hint_label.setFont(QFont('Sans Serif', 8))
         text_layout.addWidget(self.state_label)
         text_layout.addWidget(self.hint_label)
         status_row.addLayout(text_layout, 1)
 
         self.timer_label = QLabel('00:00')
-        self.timer_label.setFont(QFont('Monospace', 10, QFont.Weight.DemiBold))
+        self.timer_label.setFont(QFont('Monospace', 9, QFont.Weight.DemiBold))
         status_row.addWidget(self.timer_label)
         card_layout.addLayout(status_row)
 
         self.transcript_label = QLabel('Your latest dictation will appear here.')
-        self.transcript_label.setWordWrap(True)
-        self.transcript_label.setFixedHeight(34)
+        self.transcript_label.setWordWrap(False)
+        self.transcript_label.setFixedHeight(26)
         self.transcript_label.setToolTip('No dictation yet')
         self.transcript_label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
-        card_layout.addWidget(self.transcript_label)
-
         controls = QHBoxLayout()
-        controls.setSpacing(8)
-        controls.addStretch(1)
+        controls.setSpacing(6)
+        controls.addWidget(self.transcript_label, 1)
         self.copy_button = QPushButton('Copy')
         self.copy_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.copy_button.setEnabled(False)
-        self.copy_button.setFixedHeight(32)
+        self.copy_button.setFixedHeight(26)
         self.copy_button.clicked.connect(self.copy_requested)
         controls.addWidget(self.copy_button)
         self.start_stop_button = QPushButton('Start')
         self.start_stop_button.setObjectName('floatingPrimaryButton')
         self.start_stop_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.start_stop_button.setFixedHeight(32)
+        self.start_stop_button.setFixedHeight(26)
         self.start_stop_button.clicked.connect(self.start_stop_requested)
         controls.addWidget(self.start_stop_button)
         card_layout.addLayout(controls)
@@ -459,15 +502,16 @@ class RecordingIndicator(QWidget):
             QFrame#recordingCard {
                 background-color: #F8FAFD;
                 border: 1px solid #C7D3E1;
-                border-radius: 16px;
+                border-radius: 13px;
             }
             QLabel { color: #14202B; background: transparent; border: none; }
             QPushButton {
                 color: #25334A;
                 background: #FFFFFF;
                 border: 1px solid #C9D4E1;
-                border-radius: 7px;
-                padding: 0 13px;
+                border-radius: 6px;
+                padding: 0 10px;
+                font-size: 11px;
                 font-weight: 650;
             }
             QPushButton:hover { background: #EDF3FA; border-color: #9FB0C5; }
@@ -475,12 +519,12 @@ class RecordingIndicator(QWidget):
             QPushButton:disabled { color: #99A5B5; background: #EEF2F6; }
             QPushButton#floatingPrimaryButton {
                 color: #FFFFFF;
-                background: %s;
-                border-color: %s;
-                min-width: 82px;
+                background: __ACCENT__;
+                border-color: __ACCENT__;
+                min-width: 62px;
             }
             """
-            % (accent, accent)
+            .replace('__ACCENT__', accent)
         )
         self.hint_label.setStyleSheet('color: #60727F;')
         self.timer_label.setStyleSheet(f'color: {accent};')
@@ -529,6 +573,20 @@ class RecordingIndicator(QWidget):
             return
         super().mouseReleaseEvent(event)
 
+    def _start_drag(self, global_position):
+        self._drag_offset = global_position - self.frameGeometry().topLeft()
+
+    def _move_drag(self, global_position):
+        if self._drag_offset is not None:
+            self.move(global_position - self._drag_offset)
+
+    def _finish_drag(self):
+        if self._drag_offset is None:
+            return
+        self._drag_offset = None
+        self.restore_position(self.x(), self.y())
+        self.position_changed.emit(self.x(), self.y())
+
     def _tick(self):
         self._elapsed_seconds += 1
         minutes, seconds = divmod(self._elapsed_seconds, 60)
@@ -554,7 +612,7 @@ class RecordingIndicator(QWidget):
             return
         level = max(0.0, min(float(volume), 1.0))
         for bar, factor in zip(self.bars, (0.55, 0.9, 1.0, 0.7)):
-            bar.setFixedHeight(7 + int(25 * level * factor))
+            bar.setFixedHeight(5 + int(19 * level * factor))
 
     def show_processing(self):
         self.elapsed_timer.stop()
@@ -563,7 +621,7 @@ class RecordingIndicator(QWidget):
         self._apply_state('processing')
         self.start_stop_button.setText('Processing…')
         self.start_stop_button.setEnabled(False)
-        for bar, height in zip(self.bars, (10, 18, 26, 14)):
+        for bar, height in zip(self.bars, (8, 15, 22, 12)):
             bar.setFixedHeight(height)
         self.show()
 
@@ -621,8 +679,8 @@ class RecordingIndicator(QWidget):
         self._latest_text = (text or '').strip()
         if self._latest_text:
             preview = self._latest_text.replace('\n', ' ')
-            if len(preview) > 150:
-                preview = preview[:147].rstrip() + '…'
+            if len(preview) > 52:
+                preview = preview[:49].rstrip() + '…'
             self.transcript_label.setText(preview)
             self.transcript_label.setToolTip(self._latest_text)
             self.copy_button.setEnabled(True)
@@ -942,6 +1000,156 @@ class GlobalHotkeyListener(QObject):
         self._mouse_pressed = False
 
 
+class WaylandHotkeyListener(GlobalHotkeyListener):
+    """Read the configured Linux input code when Wayland blocks pynput."""
+
+    def __init__(self, key_name='NumpadEnter'):
+        super().__init__(key_name)
+        self._thread = None
+        self._stop_event = threading.Event()
+        self._devices = []
+        self._target_code = None
+
+    def _configured_evdev_code(self):
+        from evdev import ecodes
+
+        configured = self.key_name.strip().lower().replace('-', '_').replace(' ', '_')
+        aliases = {
+            'capslock': 'caps_lock',
+            'escape': 'esc',
+            'mouse4': 'mouse4',
+            'x1': 'mouse4',
+            'mouse5': 'mouse5',
+            'x2': 'mouse5',
+        }
+        configured = aliases.get(configured, configured)
+        if configured in NUMPAD_ENTER_NAMES:
+            return ecodes.KEY_KPENTER
+        special = {
+            'enter': ecodes.KEY_ENTER,
+            'return': ecodes.KEY_ENTER,
+            'esc': ecodes.KEY_ESC,
+            'space': ecodes.KEY_SPACE,
+            'tab': ecodes.KEY_TAB,
+            'caps_lock': ecodes.KEY_CAPSLOCK,
+            'mouse4': ecodes.BTN_SIDE,
+            'mouse5': ecodes.BTN_EXTRA,
+        }
+        if configured in special:
+            return special[configured]
+        code_name = f"KEY_{configured.upper()}"
+        return getattr(ecodes, code_name, None)
+
+    def start(self):
+        try:
+            from evdev import InputDevice, ecodes, list_devices
+
+            self._target_code = self._configured_evdev_code()
+            if self._target_code is None:
+                raise ValueError(f'Unsupported Wayland shortcut: {self.key_name}')
+
+            self._devices = []
+            for path in list_devices():
+                try:
+                    device = InputDevice(path)
+                    key_codes = device.capabilities().get(ecodes.EV_KEY, [])
+                    is_virtual = 'virtual' in (device.name or '').lower()
+                    if not is_virtual and (
+                        self._target_code in key_codes or ecodes.KEY_ESC in key_codes
+                    ):
+                        self._devices.append(device)
+                    else:
+                        device.close()
+                except (OSError, PermissionError):
+                    logger.debug('Skipping unreadable input device %s', path)
+
+            if not any(
+                self._target_code
+                in device.capabilities().get(ecodes.EV_KEY, [])
+                for device in self._devices
+            ):
+                raise RuntimeError(
+                    f'No readable input device provides {display_trigger_key(self.key_name)}'
+                )
+
+            self._stop_event.clear()
+            self._thread = threading.Thread(
+                target=self._run_input_loop,
+                name='wayland-hotkey-listener',
+                daemon=True,
+            )
+            self._thread.start()
+            logger.info(
+                'Wayland hotkey %s listening on %s',
+                display_trigger_key(self.key_name),
+                ', '.join(device.name for device in self._devices),
+            )
+        except (ImportError, OSError, RuntimeError, ValueError) as error:
+            logger.exception('Could not start the Wayland hotkey listener')
+            self.error_occurred.emit(str(error))
+
+    def _run_input_loop(self):
+        from evdev import ecodes
+
+        selector = selectors.DefaultSelector()
+        try:
+            for device in self._devices:
+                selector.register(device.fd, selectors.EVENT_READ, device)
+            while not self._stop_event.is_set():
+                for selected, _ in selector.select(timeout=0.25):
+                    device = selected.data
+                    try:
+                        events = device.read()
+                    except (BlockingIOError, OSError):
+                        continue
+                    for event in events:
+                        if event.type == ecodes.EV_KEY and event.value != 2:
+                            self._handle_evdev_key(event.code, event.value)
+        finally:
+            selector.close()
+
+    def _handle_evdev_key(self, code, value):
+        from evdev import ecodes
+
+        pressed = value == 1
+        if code == ecodes.KEY_ESC:
+            if pressed and not self._escape_pressed:
+                self._escape_pressed = True
+                self.cancel_triggered.emit()
+            elif not pressed:
+                self._escape_pressed = False
+
+        if code != self._target_code:
+            return
+        if self.is_hold_to_talk:
+            if pressed and not self._mouse_pressed:
+                self._mouse_pressed = True
+                self.hold_started.emit()
+            elif not pressed and self._mouse_pressed:
+                self._mouse_pressed = False
+                self.hold_released.emit()
+        elif pressed and not self._pressed:
+            self._pressed = True
+            self.hotkey_triggered.emit()
+        elif not pressed:
+            self._pressed = False
+
+    def stop(self):
+        self._stop_event.set()
+        for device in self._devices:
+            try:
+                device.close()
+            except OSError:
+                pass
+        self._devices = []
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1)
+        self._thread = None
+        self._pressed = False
+        self._mouse_pressed = False
+        self._escape_pressed = False
+
+
 class TranscriptionWorker(QThread):
     succeeded = pyqtSignal(str)
     failed = pyqtSignal(str)
@@ -1037,7 +1245,12 @@ class MainWindow(QMainWindow):
 
     def _create_hotkey_listener(self, trigger_key):
         """Create one consistently wired global shortcut listener."""
-        listener = GlobalHotkeyListener(trigger_key)
+        listener_class = (
+            WaylandHotkeyListener
+            if os.environ.get('WAYLAND_DISPLAY')
+            else GlobalHotkeyListener
+        )
+        listener = listener_class(trigger_key)
         listener.hotkey_triggered.connect(self._toggle_dictation)
         listener.hold_started.connect(self._start_hold_dictation)
         listener.hold_released.connect(self._stop_hold_dictation)
@@ -1574,6 +1787,7 @@ class MainWindow(QMainWindow):
                     'error', 'Microphone unavailable',
                     'Check the input device and its permissions, then try again.',
                 )
+                self.recording_indicator.show_error(can_start=True)
                 return
 
             self.recording_indicator.start_recording(
@@ -1726,6 +1940,8 @@ class MainWindow(QMainWindow):
                     self.hotkey_listener.stop()
                     self.hotkey_listener = self._create_hotkey_listener(trigger_key)
                     self.hotkey_listener.start()
+                    if self.whisper_engine.is_loaded and not self.is_listening:
+                        self.recording_indicator.show_ready(trigger_key)
                 self._refresh_quick_settings()
                 self._show_toast('Settings saved')
                 model_changed = self.settings.get('model', 'small') != previous_model

@@ -12,6 +12,12 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+# Native Wayland intentionally controls top-level window placement. Run Qt via
+# XWayland so the always-on-top controller can be dragged to an exact position.
+# Global shortcuts still use the Wayland-aware Linux input listener.
+if os.environ.get('WAYLAND_DISPLAY'):
+    os.environ.setdefault('QT_QPA_PLATFORM', 'xcb')
+
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
@@ -42,6 +48,7 @@ class WhisperDictationApp:
     def __init__(self, start_hidden=False):
         self.app = QApplication(sys.argv)
         self.app.setQuitOnLastWindowClosed(False)
+        logger.info("Qt platform: %s", self.app.platformName())
         
         # Set application info
         self.app.setApplicationName("Whisper Linux Dictation")

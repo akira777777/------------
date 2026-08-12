@@ -12,7 +12,7 @@ A lightweight, privacy-focused speech-to-text application for Linux Ubuntu, simi
 - **100% Local Processing**: Your audio never leaves your computer (except when using cloud API)
 - **Automatic Text Improvement**: Locally cleans spacing, punctuation, capitalization, and accidental repetitions
 - **Cross-Distribution**: Works on Ubuntu, Fedora, Arch Linux, Debian, and other distributions
-- **Linux Desktop Support**: Works on X11; Wayland compositors may restrict global hotkeys or simulated paste
+- **Linux Desktop Support**: Uses native input events for global shortcuts on Wayland and `pynput` on X11; simulated paste can still depend on compositor permissions
 
 ## Installation
 
@@ -33,7 +33,7 @@ python3 -m whisper_linux_dictation
 
 ```bash
 # Core dependencies
-pip install faster-whisper sounddevice numpy PyQt6 silero-vad pyautogui
+pip install faster-whisper sounddevice numpy PyQt6 silero-vad pyautogui pynput evdev
 
 # System audio (Ubuntu/Debian)
 sudo apt-get install -y libportaudio2 libportaudiocpp0 portaudio19-dev libsndfile1 libsndfile1-dev pulseaudio-utils
