@@ -6,7 +6,6 @@ Creates a distributable package with .deb support
 
 from setuptools import setup, find_packages
 import os
-import sys
 
 # Get the absolute path to this directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -48,14 +47,20 @@ setup(
     ],
     
     # Package configuration
-    packages=find_packages(where='src'),
-    package_dir={'': 'src'},
+    packages=[
+        'whisper_linux_dictation',
+        *[
+            f'whisper_linux_dictation.{package}'
+            for package in find_packages(where='src')
+        ],
+    ],
+    package_dir={'whisper_linux_dictation': 'src'},
     
     # Entry points for console scripts
     entry_points={
         'console_scripts': [
-            'whisper-linux-dictation=main:main',
-            'wld=main:main',  # Short alias
+            'whisper-linux-dictation=whisper_linux_dictation.main:main',
+            'wld=whisper_linux_dictation.main:main',  # Short alias
         ],
     },
     
@@ -67,6 +72,7 @@ setup(
         'PyQt6>=6.5.0',
         'silero-vad>=5.0.0',
         'pyautogui>=0.9.54',
+        'pynput>=1.7.7',
         'python-dotenv>=1.0.0',
     ],
     

@@ -1,3 +1,3 @@
 # Audio Package
 
-from audio.input_handler import AudioInputHandler, AudioCaptureThread
+from .input_handler import AudioInputHandler, AudioCaptureThread

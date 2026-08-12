@@ -15,21 +15,10 @@ silero-vad>=5.0.0
 
 # Text Injection into Applications
 pyautogui>=0.9.54
-
-# System Audio (PulseAudio/PipeWire)
-pulseaudio-utils>=14.2
-pipewire>=0.3.60
+pynput>=1.7.7
 
 # Configuration Management
 python-dotenv>=1.0.0
-configparser>=6.0.0
-
-# Threading & Concurrency
-threading>=3.0.0
-queue>=2.4.0
-
-# Logging
-logging>=0.0.0
 
 # Optional: GPU Acceleration (uncomment if using CUDA)
 # torch>=2.1.0
