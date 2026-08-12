@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QDateTime, QObject, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QCursor, QFont, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -45,7 +45,7 @@ def paste_clipboard_text():
     if os.environ.get('WAYLAND_DISPLAY') and shutil.which('wtype'):
         try:
             subprocess.run(
-                ['wtype', '-M', 'ctrl', 'v', '-m', 'ctrl'],
+                ['wtype', '-M', 'ctrl', '-k', 'v', '-m', 'ctrl'],
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -58,6 +58,165 @@ def paste_clipboard_text():
     import pyautogui
 
     pyautogui.hotkey('ctrl', 'v')
+
+
+class RecordingIndicator(QWidget):
+    """Focus-safe floating status capsule for the dictation lifecycle."""
+
+    COLORS = {
+        'recording': '#FF5A5F',
+        'processing': '#4F8CFF',
+        'ready': '#35B99A',
+        'cancelled': '#94A3AE',
+        'error': '#E24A4A',
+    }
+
+    def __init__(self):
+        super().__init__(None)
+        self.setWindowFlags(
+            Qt.WindowType.Tool
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setFixedSize(300, 82)
+
+        self._elapsed_seconds = 0
+        self._state = 'ready'
+        self._hide_generation = 0
+
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.card = QFrame()
+        self.card.setObjectName('recordingCard')
+        card_layout = QHBoxLayout(self.card)
+        card_layout.setContentsMargins(18, 12, 18, 12)
+        card_layout.setSpacing(14)
+
+        waveform = QWidget()
+        waveform.setFixedSize(38, 34)
+        waveform_layout = QHBoxLayout(waveform)
+        waveform_layout.setContentsMargins(0, 0, 0, 0)
+        waveform_layout.setSpacing(4)
+        waveform_layout.setAlignment(Qt.AlignmentFlag.AlignBottom)
+        self.bars = []
+        for height in (8, 16, 24, 12):
+            bar = QFrame()
+            bar.setFixedSize(6, height)
+            self.bars.append(bar)
+            waveform_layout.addWidget(bar, alignment=Qt.AlignmentFlag.AlignBottom)
+        card_layout.addWidget(waveform)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(2)
+        self.state_label = QLabel('Запись')
+        self.state_label.setFont(QFont('Sans Serif', 11, QFont.Weight.DemiBold))
+        self.hint_label = QLabel('F12 — завершить')
+        self.hint_label.setFont(QFont('Sans Serif', 9))
+        text_layout.addWidget(self.state_label)
+        text_layout.addWidget(self.hint_label)
+        card_layout.addLayout(text_layout, 1)
+
+        self.timer_label = QLabel('00:00')
+        self.timer_label.setFont(QFont('Monospace', 10, QFont.Weight.DemiBold))
+        card_layout.addWidget(self.timer_label)
+        outer_layout.addWidget(self.card)
+
+        self.elapsed_timer = QTimer(self)
+        self.elapsed_timer.timeout.connect(self._tick)
+        self._apply_state('recording')
+
+    def _apply_state(self, state):
+        self._state = state
+        accent = self.COLORS[state]
+        self.card.setStyleSheet(
+            f"""
+            QFrame#recordingCard {{
+                background-color: #F4F7F9;
+                border: 1px solid #CBD6DD;
+                border-radius: 18px;
+            }}
+            QLabel {{ color: #14202B; background: transparent; border: none; }}
+            """
+        )
+        self.hint_label.setStyleSheet('color: #60727F;')
+        self.timer_label.setStyleSheet(f'color: {accent};')
+        for bar in self.bars:
+            bar.setStyleSheet(f'background-color: {accent}; border-radius: 3px;')
+
+    def _position_on_active_screen(self):
+        screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
+        if screen:
+            area = screen.availableGeometry()
+            self.move(area.right() - self.width() - 24, area.top() + 24)
+
+    def _tick(self):
+        self._elapsed_seconds += 1
+        minutes, seconds = divmod(self._elapsed_seconds, 60)
+        self.timer_label.setText(f'{minutes:02d}:{seconds:02d}')
+
+    def start_recording(self, trigger_key='F12'):
+        self._hide_generation += 1
+        self._elapsed_seconds = 0
+        self.timer_label.setText('00:00')
+        self.state_label.setText('Запись идёт')
+        self.hint_label.setText(f'{trigger_key} — завершить  ·  Esc — отмена')
+        self._apply_state('recording')
+        self.elapsed_timer.start(1000)
+        self._position_on_active_screen()
+        self.show()
+        self.raise_()
+
+    def update_volume(self, volume):
+        if self._state != 'recording':
+            return
+        level = max(0.0, min(float(volume), 1.0))
+        for bar, factor in zip(self.bars, (0.55, 0.9, 1.0, 0.7)):
+            bar.setFixedHeight(7 + int(25 * level * factor))
+
+    def show_processing(self):
+        self.elapsed_timer.stop()
+        self.state_label.setText('Распознавание')
+        self.hint_label.setText('Улучшаю текст…')
+        self._apply_state('processing')
+        for bar, height in zip(self.bars, (10, 18, 26, 14)):
+            bar.setFixedHeight(height)
+
+    def show_result(self, inserted):
+        self.elapsed_timer.stop()
+        self.state_label.setText('Текст вставлен' if inserted else 'Текст готов')
+        self.hint_label.setText('Можно диктовать снова')
+        self.timer_label.setText('✓')
+        self._apply_state('ready')
+        self._hide_later(1400)
+
+    def show_cancelled(self, message='Запись отменена'):
+        self.elapsed_timer.stop()
+        self.state_label.setText(message)
+        self.hint_label.setText('Аудио не сохранено')
+        self.timer_label.setText('×')
+        self._apply_state('cancelled')
+        self._hide_later(1200)
+
+    def show_error(self):
+        self.elapsed_timer.stop()
+        self.state_label.setText('Ошибка записи')
+        self.hint_label.setText('Откройте окно программы')
+        self.timer_label.setText('!')
+        self._apply_state('error')
+        self._hide_later(2200)
+
+    def _hide_later(self, delay_ms):
+        self._hide_generation += 1
+        generation = self._hide_generation
+        QTimer.singleShot(
+            delay_ms,
+            lambda: self.hide() if generation == self._hide_generation else None,
+        )
 
 
 class SettingsDialog(QDialog):

@@ -19,6 +19,16 @@ def normalize_language(language):
     return language if language in SUPPORTED_LANGUAGES else 'auto'
 
 
+def choose_supported_language(language_probabilities):
+    """Choose Russian or English from Whisper's complete probability list."""
+    probabilities = dict(language_probabilities)
+    scores = {'ru': float(probabilities.get('ru', 0.0)), 'en': float(probabilities.get('en', 0.0))}
+    language = max(('ru', 'en'), key=lambda item: scores[item])
+    supported_total = scores['ru'] + scores['en']
+    confidence = scores[language] / supported_total if supported_total else 0.5
+    return language, confidence
+
+
 class WhisperEngine(QObject):
     """Manages the Whisper transcription engine"""
     
@@ -121,13 +131,23 @@ class WhisperEngine(QObject):
             self.is_processing = True
             self.status_changed.emit("Processing...")
             
-            # Use provided language or default
+            # In automatic mode, constrain detection to the two languages the
+            # application supports. Whisper's default detector considers 99+
+            # languages and can pick an unrelated one for short recordings.
             lang = normalize_language(language or self.language)
+            if lang == 'auto':
+                _, _, language_probabilities = self.model.detect_language(audio=audio_samples)
+                recognition_language, language_probability = choose_supported_language(
+                    language_probabilities
+                )
+            else:
+                recognition_language = lang
+                language_probability = 1.0
             
             # Process with faster-whisper
-            segments, info = self.model.transcribe(
+            segments, _info = self.model.transcribe(
                 audio_samples,
-                language=lang if lang != 'auto' else None,
+                language=recognition_language,
                 task='transcribe',
                 beam_size=3,
                 word_timestamps=False,
@@ -140,14 +160,12 @@ class WhisperEngine(QObject):
                 ),
             )
 
-            detected_language = normalize_language(getattr(info, 'language', lang))
-            language_probability = float(getattr(info, 'language_probability', 1.0))
-            self.last_detected_language = detected_language
+            self.last_detected_language = recognition_language
             self.last_language_probability = language_probability
-            self.language_detected.emit(detected_language, language_probability)
+            self.language_detected.emit(recognition_language, language_probability)
             logger.info(
                 "Recognition language: %s (%.1f%%)",
-                detected_language,
+                recognition_language,
                 language_probability * 100,
             )
             
