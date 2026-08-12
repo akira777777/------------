@@ -1001,6 +1001,7 @@ class MainWindow(QMainWindow):
         self._animations = []
         self._progress_animation = None
         self._toast_generation = 0
+        self._latest_transcript = ''
 
         # Coalesce rapid history edits into one disk write.
         self.history_save_timer = QTimer(self)
@@ -1011,6 +1012,17 @@ class MainWindow(QMainWindow):
         # Setup UI
         self._create_ui()
         self.recording_indicator = RecordingIndicator()
+        self.recording_indicator.set_latest_text(self._latest_transcript)
+        self.recording_indicator.start_stop_requested.connect(self._toggle_dictation)
+        self.recording_indicator.copy_requested.connect(self._copy_latest_transcript)
+        self.recording_indicator.position_changed.connect(
+            self._save_floating_panel_position
+        )
+        self.recording_indicator.restore_position(
+            self.settings.get('floating_panel_x'),
+            self.settings.get('floating_panel_y'),
+        )
+        self.recording_indicator.show()
         
         # Connect signals
         self._connect_signals()
@@ -1466,6 +1478,7 @@ class MainWindow(QMainWindow):
                 f'Loading the {model_size} model',
                 'The first launch may download model files. You can keep this window open.',
             )
+            self.recording_indicator.show_loading()
             worker = ModelLoadWorker(
                 self.whisper_engine,
                 model_size,
@@ -1488,11 +1501,13 @@ class MainWindow(QMainWindow):
                 'ready', 'Ready when you are',
                 'Use your shortcut or the button below to begin dictating.',
             )
+            self.recording_indicator.show_ready()
         else:
             self._set_ui_state(
                 'error', 'Model could not be loaded',
                 'Check the error message, then try a smaller model in Settings.',
             )
+            self.recording_indicator.show_error(can_start=False)
 
         configured_model = self.settings.get('model', 'small')
         configured_language = normalize_language(self.settings.get('language', 'auto'))
@@ -1739,6 +1754,8 @@ class MainWindow(QMainWindow):
                 self.latest_text.style().unpolish(self.latest_text)
                 self.latest_text.style().polish(self.latest_text)
                 self._fade_widget(self.latest_text, duration=220)
+                self._latest_transcript = cleaned
+                self.recording_indicator.set_latest_text(cleaned)
                 
         except Exception as e:
             print(f"Error handling transcription: {e}")
