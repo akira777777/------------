@@ -4,7 +4,8 @@ A lightweight, privacy-focused speech-to-text application for Linux Ubuntu, simi
 
 ## Features
 
-- **Push-to-Talk Dictation**: Hold `Mouse 5`, speak, then release it to transcribe and paste into the focused field
+- **Always-on-top controls**: Start or stop dictation and copy the latest polished transcript from a compact floating panel
+- **Numpad Enter shortcut**: Press `Numpad Enter` once to start and again to transcribe and paste into the focused field
 - **Works in the Background**: Starts with your desktop session and keeps listening while the window is hidden in the tray
 - **Multiple Model Sizes**: Choose from tiny, small, base, or large models based on your needs
 - **Automatic Russian/English Recognition**: Switch between Russian and English without changing settings
@@ -53,12 +54,13 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 2. **Configure your settings** (optional, defaults work for most users):
    - Click "Settings" in the top menu
    - Choose your preferred model size and language
-   - Keep `Mouse5` as push-to-talk, or choose a keyboard toggle key
+   - Keep `NumpadEnter` as the toggle shortcut, or choose another keyboard or mouse key
 
 3. **Start dictating**:
-   - Hold `Mouse 5` to start recording
+   - Press `Numpad Enter` or click `Start` on the floating panel
    - Speak clearly into your microphone
-   - Release `Mouse 5` to recognize, improve, and paste the text
+   - Press `Numpad Enter` again or click `Stop` to recognize, improve, and paste the text
+   - Use `Copy` on the floating panel to copy the complete latest transcript
    - If automatic paste is blocked by the desktop, the result remains in the clipboard for `Ctrl+V`
    - Your speech will be typed into the currently focused text field!
 
@@ -73,7 +75,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ## Keyboard Shortcuts
 
-- `Mouse 5` - Hold to record; release to recognize and paste (default)
+- `Numpad Enter` - Press once to record; press again to recognize and paste (default)
+- `Mouse 5` - Optional hold-to-talk shortcut when configured
 - Keyboard keys such as `F12` use toggle mode when configured
 - `Esc` - Cancel current recording
 
@@ -86,7 +89,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 - **Trigger Key**: Customize the key that activates dictation
 - **Clipboard Copy**: Automatically copy to clipboard after typing
 - **Text Improvement**: Normalize recognized text and optionally remove filler words
-- **Start on Login**: Keep global Mouse 5 dictation available after signing in without opening the window
+- **Floating panel**: Keep the draggable controller above other windows and remember its screen position
+- **Start on Login**: Keep dictation and its floating controller available after signing in
 - **Volume Control**: Adjust microphone input volume
 
 ## System Requirements

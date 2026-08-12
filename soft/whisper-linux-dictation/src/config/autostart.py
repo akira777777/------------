@@ -25,7 +25,7 @@ def build_desktop_entry(python_executable=None):
         "[Desktop Entry]\n"
         "Type=Application\n"
         "Name=Whisper Linux Dictation\n"
-        "Comment=Global Mouse 5 push-to-talk dictation\n"
+        "Comment=Always-available local voice dictation\n"
         f"Exec={command}\n"
         "Terminal=false\n"
         "X-GNOME-Autostart-enabled=true\n"

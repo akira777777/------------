@@ -597,10 +597,10 @@ class RecordingIndicator(QWidget):
         self.start_stop_button.setEnabled(can_start)
         self.show()
 
-    def show_ready(self):
+    def show_ready(self, trigger_key='NumpadEnter'):
         self.elapsed_timer.stop()
         self.state_label.setText('Ready')
-        self.hint_label.setText('Numpad Enter or Start')
+        self.hint_label.setText(f'{display_trigger_key(trigger_key)} or Start')
         self.timer_label.setText('•')
         self._apply_state('ready')
         self.start_stop_button.setText('Start')
@@ -1501,7 +1501,9 @@ class MainWindow(QMainWindow):
                 'ready', 'Ready when you are',
                 'Use your shortcut or the button below to begin dictating.',
             )
-            self.recording_indicator.show_ready()
+            self.recording_indicator.show_ready(
+                self.settings.get('trigger_key', 'NumpadEnter')
+            )
         else:
             self._set_ui_state(
                 'error', 'Model could not be loaded',
@@ -1644,6 +1646,7 @@ class MainWindow(QMainWindow):
             worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
             self.worker = worker
             worker.succeeded.connect(self._on_transcription_completed)
+            worker.failed.connect(self._on_error)
             worker.finished.connect(lambda: self._clear_transcription_worker(worker))
             worker.finished.connect(worker.deleteLater)
             worker.start()
@@ -1783,6 +1786,7 @@ class MainWindow(QMainWindow):
                     entries = [line.strip() for line in content.splitlines() if line.strip()]
                     if entries:
                         latest = entries[-1].split('] ', 1)[-1]
+                        self._latest_transcript = latest
                         self.latest_text.setText(latest)
                         self.latest_text.setProperty('empty', False)
                         self.latest_text.style().unpolish(self.latest_text)
@@ -1804,11 +1808,32 @@ class MainWindow(QMainWindow):
         """Update counts immediately and debounce persistent writes."""
         self._update_history_stats()
         if not self.history_edit.toPlainText().strip():
+            self._latest_transcript = ''
             self.latest_text.setText('Your next transcription will appear here.')
             self.latest_text.setProperty('empty', True)
             self.latest_text.style().unpolish(self.latest_text)
             self.latest_text.style().polish(self.latest_text)
+            if hasattr(self, 'recording_indicator'):
+                self.recording_indicator.set_latest_text('')
         self.history_save_timer.start()
+
+    def _save_floating_panel_position(self, x, y):
+        """Persist the controller position after a completed drag."""
+        try:
+            self.settings.update({
+                'floating_panel_x': int(x),
+                'floating_panel_y': int(y),
+            })
+        except (OSError, TypeError, ValueError):
+            logger.exception('Could not save the floating panel position')
+
+    def _copy_latest_transcript(self):
+        """Copy the complete latest transcript from the floating controller."""
+        if not self._latest_transcript:
+            return
+        QApplication.clipboard().setText(self._latest_transcript)
+        self.recording_indicator.show_copy_confirmation()
+        self._show_toast('Latest transcript copied')
 
     def _update_history_stats(self):
         """Update line, word, and character counts"""
@@ -1912,7 +1937,7 @@ class MainWindow(QMainWindow):
                 'error', 'Something needs attention',
                 'Review the message, check your audio setup, and try again.',
             )
-            self.recording_indicator.show_error()
+            self.recording_indicator.show_error(can_start=self.whisper_engine.is_loaded)
             QMessageBox.warning(self, "Dictation error", error_msg)
         
         except Exception as e:
