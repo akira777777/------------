@@ -53,7 +53,6 @@ from ..config.settings import get_settings
 from ..engine.whisper_engine import WhisperEngine, normalize_language
 from ..postprocessing import improve_transcript
 
-
 logger = logging.getLogger(__name__)
 
 APP_STYLESHEET = """
@@ -411,13 +410,13 @@ class RecordingIndicator(QWidget):
         self._state = state
         accent = self.COLORS[state]
         self.card.setStyleSheet(
-            f"""
-            QFrame#recordingCard {{
+            """
+            QFrame#recordingCard {
                 background-color: #F4F7F9;
                 border: 1px solid #CBD6DD;
                 border-radius: 18px;
-            }}
-            QLabel {{ color: #14202B; background: transparent; border: none; }}
+            }
+            QLabel { color: #14202B; background: transparent; border: none; }
             """
         )
         self.hint_label.setStyleSheet('color: #60727F;')
