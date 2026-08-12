@@ -202,6 +202,7 @@ QLineEdit, QComboBox, QPlainTextEdit {
     selection-background-color: #BED0FF;
 }
 QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus { border: 2px solid #7399FF; }
+QLineEdit[noMatch="true"] { border-color: #D96874; background: #FFF7F8; }
 QComboBox { min-height: 25px; }
 QComboBox::drop-down { border: 0; width: 28px; }
 QComboBox QAbstractItemView {
@@ -370,9 +371,9 @@ class RecordingIndicator(QWidget):
 
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
-        self.state_label = QLabel('Запись')
+        self.state_label = QLabel('Recording')
         self.state_label.setFont(QFont('Sans Serif', 11, QFont.Weight.DemiBold))
-        self.hint_label = QLabel('Mouse 5 — удерживайте')
+        self.hint_label = QLabel('Esc: cancel')
         self.hint_label.setFont(QFont('Sans Serif', 9))
         text_layout.addWidget(self.state_label)
         text_layout.addWidget(self.hint_label)
@@ -420,11 +421,11 @@ class RecordingIndicator(QWidget):
         self._hide_generation += 1
         self._elapsed_seconds = 0
         self.timer_label.setText('00:00')
-        self.state_label.setText('Запись идёт')
+        self.state_label.setText('Listening')
         if hold_to_talk:
-            self.hint_label.setText(f'Отпустите {trigger_key} → вставить')
+            self.hint_label.setText(f'Release {trigger_key} to insert')
         else:
-            self.hint_label.setText(f'{trigger_key}: нажмите для стопа')
+            self.hint_label.setText(f'{trigger_key}: press again to finish')
         self._apply_state('recording')
         self.elapsed_timer.start(1000)
         self._position_on_active_screen()
@@ -440,8 +441,8 @@ class RecordingIndicator(QWidget):
 
     def show_processing(self):
         self.elapsed_timer.stop()
-        self.state_label.setText('Распознавание')
-        self.hint_label.setText('Улучшаю текст…')
+        self.state_label.setText('Transcribing')
+        self.hint_label.setText('Polishing your text…')
         self._apply_state('processing')
         for bar, height in zip(self.bars, (10, 18, 26, 14)):
             bar.setFixedHeight(height)
@@ -450,18 +451,18 @@ class RecordingIndicator(QWidget):
 
     def show_result(self, inserted):
         self.elapsed_timer.stop()
-        self.state_label.setText('Текст вставлен' if inserted else 'Текст готов')
-        self.hint_label.setText('Можно диктовать снова')
+        self.state_label.setText('Text inserted' if inserted else 'Text ready')
+        self.hint_label.setText('Ready for another dictation')
         self.timer_label.setText('✓')
         self._apply_state('ready')
         self._position_on_active_screen()
         self.show()
         self._hide_later(1400)
 
-    def show_cancelled(self, message='Запись отменена'):
+    def show_cancelled(self, message='Recording cancelled'):
         self.elapsed_timer.stop()
         self.state_label.setText(message)
-        self.hint_label.setText('Аудио не сохранено')
+        self.hint_label.setText('Audio was not saved')
         self.timer_label.setText('×')
         self._apply_state('cancelled')
         self._position_on_active_screen()
@@ -470,8 +471,8 @@ class RecordingIndicator(QWidget):
 
     def show_error(self):
         self.elapsed_timer.stop()
-        self.state_label.setText('Ошибка записи')
-        self.hint_label.setText('Откройте окно программы')
+        self.state_label.setText('Dictation error')
+        self.hint_label.setText('Open the app for details')
         self.timer_label.setText('!')
         self._apply_state('error')
         self._position_on_active_screen()
@@ -1139,15 +1140,22 @@ class MainWindow(QMainWindow):
         self.status_label.setText(title)
         if detail is not None:
             self.detail_label.setText(detail)
-        self.indicator_frame.setProperty('state', state)
-        self.indicator_frame.style().unpolish(self.indicator_frame)
-        self.indicator_frame.style().polish(self.indicator_frame)
+        for widget in (
+            self.indicator_frame,
+            self.hero_card,
+            self.signal_panel,
+            self.signal_state_label,
+        ):
+            widget.setProperty('state', state)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
         is_recording = state == 'recording'
         self.waveform.set_active(is_recording)
         self.start_btn.setProperty('recording', is_recording)
         self.start_btn.style().unpolish(self.start_btn)
         self.start_btn.style().polish(self.start_btn)
         self.start_btn.setText('Finish dictation' if is_recording else 'Start dictation')
+        self.start_btn.setEnabled(state in {'ready', 'recording', 'muted'})
         self.stop_btn.setEnabled(is_recording)
     
     def _load_model(self):
@@ -1316,7 +1324,7 @@ class MainWindow(QMainWindow):
                     'muted', 'That was too short',
                     'Hold the shortcut a little longer while speaking.',
                 )
-                self.recording_indicator.show_cancelled('Запись слишком короткая')
+                self.recording_indicator.show_cancelled('Recording too short')
                 return
 
             self._set_ui_state(
@@ -1386,7 +1394,7 @@ class MainWindow(QMainWindow):
                 'muted', 'No speech detected',
                 'Try again a little closer to the microphone.',
             )
-            self.recording_indicator.show_cancelled('Речь не распознана')
+            self.recording_indicator.show_cancelled('No speech detected')
     
     def _open_settings(self):
         """Open settings dialog"""
@@ -1425,6 +1433,7 @@ class MainWindow(QMainWindow):
                     self._save_history_file()
 
                 self.latest_text.setText(cleaned)
+                self._fade_widget(self.latest_text, duration=220)
                 
                 # Update progress bar (simulate)
                 current = self.progress_bar.value()
@@ -1519,11 +1528,20 @@ class MainWindow(QMainWindow):
             self._update_history_stats()
 
     def _filter_history(self, search_term):
-        """Highlight or move to search term in history notepad"""
+        """Move to a match and give immediate, non-blocking search feedback."""
         if not search_term.strip():
+            self.search_input.setProperty('noMatch', False)
+            self.search_input.setToolTip('')
+            self.search_input.style().unpolish(self.search_input)
+            self.search_input.style().polish(self.search_input)
             return
         doc = self.history_edit.document()
         cursor = doc.find(search_term)
+        no_match = cursor.isNull()
+        self.search_input.setProperty('noMatch', no_match)
+        self.search_input.setToolTip('No matching transcript' if no_match else '')
+        self.search_input.style().unpolish(self.search_input)
+        self.search_input.style().polish(self.search_input)
         if not cursor.isNull():
             self.history_edit.setTextCursor(cursor)
     
@@ -1539,7 +1557,8 @@ class MainWindow(QMainWindow):
     def _on_status(self, status_message):
         """Handle status message changes"""
         try:
-            self.status_label.setText(status_message)
+            if status_message:
+                self.detail_label.setText(status_message)
         
         except Exception as e:
             print(f"Error handling status: {e}")
