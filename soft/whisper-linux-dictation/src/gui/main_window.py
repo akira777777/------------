@@ -4,6 +4,7 @@ Main Window for Whisper Linux Dictation
 GUI implementation using PyQt6
 """
 
+import logging
 import os
 import shutil
 import subprocess
@@ -47,9 +48,13 @@ from PyQt6.QtWidgets import (
 )
 
 from ..audio.input_handler import AudioInputHandler
+from ..config.autostart import sync_autostart
 from ..config.settings import get_settings
 from ..engine.whisper_engine import WhisperEngine, normalize_language
 from ..postprocessing import improve_transcript
+
+
+logger = logging.getLogger(__name__)
 
 APP_STYLESHEET = """
 QWidget {
@@ -592,7 +597,7 @@ class SettingsDialog(QDialog):
         # Additional options group
         opts_group = QGroupBox("After dictation")
         opts_group.setObjectName('settingsSection')
-        opts_group.setMinimumHeight(180)
+        opts_group.setMinimumHeight(220)
         opts_layout = QVBoxLayout(opts_group)
         opts_layout.setContentsMargins(18, 22, 18, 18)
         opts_layout.setSpacing(10)
@@ -618,6 +623,11 @@ class SettingsDialog(QDialog):
         self.remove_fillers_check.setEnabled(self.improve_text_check.isChecked())
         self.improve_text_check.toggled.connect(self.remove_fillers_check.setEnabled)
         opts_layout.addWidget(self.remove_fillers_check)
+
+        self.start_on_login_check = QCheckBox("Start in the background when I sign in")
+        self.start_on_login_check.setMinimumHeight(24)
+        self.start_on_login_check.setChecked(self.settings.get('start_on_login', True))
+        opts_layout.addWidget(self.start_on_login_check)
         
         scroll_layout.addWidget(model_group)
         scroll_layout.addWidget(key_group)
@@ -658,7 +668,9 @@ class SettingsDialog(QDialog):
                 'inject_into_focused_window': self.inject_window_check.isChecked(),
                 'auto_improve_text': self.improve_text_check.isChecked(),
                 'remove_filler_words': self.remove_fillers_check.isChecked(),
+                'start_on_login': self.start_on_login_check.isChecked(),
             })
+            sync_autostart(self.start_on_login_check.isChecked())
             
             self.accept()
         
@@ -820,19 +832,21 @@ class MainWindow(QMainWindow):
         
         # UI components
         self.is_listening = False
-        self.current_text = ""
         self.worker = None
         self.model_worker = None
+        self._pending_model_reload = False
         self._shutting_down = False
         self.minimize_to_tray = False
         self._hold_to_talk_active = False
         self._animations = []
         self._progress_animation = None
         self._toast_generation = 0
-        
-        # Timer for status updates
-        self.status_timer = QTimer()
-        self.status_timer.timeout.connect(self._update_status)
+
+        # Coalesce rapid history edits into one disk write.
+        self.history_save_timer = QTimer(self)
+        self.history_save_timer.setSingleShot(True)
+        self.history_save_timer.setInterval(350)
+        self.history_save_timer.timeout.connect(self._save_history_file)
         
         # Setup UI
         self._create_ui()
@@ -846,12 +860,17 @@ class MainWindow(QMainWindow):
         
         # Global Hotkey Listener
         trigger_key = self.settings.get('trigger_key', 'Mouse5')
-        self.hotkey_listener = GlobalHotkeyListener(trigger_key)
-        self.hotkey_listener.hotkey_triggered.connect(self._toggle_dictation)
-        self.hotkey_listener.hold_started.connect(self._start_hold_dictation)
-        self.hotkey_listener.hold_released.connect(self._stop_hold_dictation)
-        self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
+        self.hotkey_listener = self._create_hotkey_listener(trigger_key)
         self.hotkey_listener.start()
+
+    def _create_hotkey_listener(self, trigger_key):
+        """Create one consistently wired global shortcut listener."""
+        listener = GlobalHotkeyListener(trigger_key)
+        listener.hotkey_triggered.connect(self._toggle_dictation)
+        listener.hold_started.connect(self._start_hold_dictation)
+        listener.hold_released.connect(self._stop_hold_dictation)
+        listener.cancel_triggered.connect(self._cancel_dictation)
+        return listener
 
     def closeEvent(self, event):
         """Keep the application available from the system tray."""
@@ -881,6 +900,8 @@ class MainWindow(QMainWindow):
     def shutdown(self):
         """Release audio and background resources before application exit."""
         self._shutting_down = True
+        if self.history_save_timer.isActive():
+            self._save_history_file()
         if self.audio_handler.is_recording:
             self.audio_handler.stop_recording()
         if self.hotkey_listener:
@@ -1263,6 +1284,14 @@ class MainWindow(QMainWindow):
         try:
             if self.model_worker and self.model_worker.isRunning():
                 return
+            if self.worker and self.worker.isRunning():
+                self._pending_model_reload = True
+                self.detail_label.setText(
+                    'The new model will load after the current transcription finishes.'
+                )
+                return
+
+            self._pending_model_reload = False
 
             model_size = self.settings.get('model', 'small')
             language = normalize_language(self.settings.get('language', 'auto'))
@@ -1302,10 +1331,8 @@ class MainWindow(QMainWindow):
 
         configured_model = self.settings.get('model', 'small')
         configured_language = normalize_language(self.settings.get('language', 'auto'))
-        if loaded and (
-            self.whisper_engine.model_size != configured_model
-            or self.whisper_engine.language != configured_language
-        ):
+        self.whisper_engine.language = configured_language
+        if loaded and self.whisper_engine.model_size != configured_model:
             self._load_model()
     
     def _has_gpu(self):
@@ -1437,7 +1464,6 @@ class MainWindow(QMainWindow):
             worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
             self.worker = worker
             worker.succeeded.connect(self._on_transcription_completed)
-            worker.failed.connect(self._on_error)
             worker.finished.connect(lambda: self._clear_transcription_worker(worker))
             worker.finished.connect(worker.deleteLater)
             worker.start()
@@ -1447,6 +1473,8 @@ class MainWindow(QMainWindow):
     def _clear_transcription_worker(self, worker):
         if self.worker is worker:
             self.worker = None
+        if self._pending_model_reload:
+            self._load_model()
 
     def _on_transcription_completed(self, text):
         """Handle completed transcription text"""
@@ -1475,20 +1503,27 @@ class MainWindow(QMainWindow):
             should_inject = self.settings.get('inject_into_focused_window', True)
             clipboard = QApplication.clipboard()
             previous_clipboard = clipboard.text() if should_inject and not should_copy else None
+            # Injection temporarily stages text on the clipboard. If both output
+            # options are disabled, leave the user's clipboard untouched.
             if should_copy or should_inject:
                 clipboard.setText(cleaned)
 
+            inserted = False
             if should_inject:
                 try:
                     paste_clipboard_text()
                 except Exception as e:
                     print(f"Could not inject text into active window: {e}")
-                    if previous_clipboard is not None:
-                        clipboard.setText(previous_clipboard)
+                    self._set_ui_state(
+                        'ready', 'Text copied',
+                        'Automatic paste was unavailable; press Ctrl+V to paste it.',
+                    )
+                    self._show_toast('Paste unavailable — text kept on clipboard')
                 else:
+                    inserted = True
                     if previous_clipboard is not None:
                         QTimer.singleShot(250, lambda value=previous_clipboard: clipboard.setText(value))
-            self.recording_indicator.show_result(should_inject)
+            self.recording_indicator.show_result(inserted)
         else:
             self._set_ui_state(
                 'muted', 'No speech detected',
@@ -1499,20 +1534,24 @@ class MainWindow(QMainWindow):
     def _open_settings(self):
         """Open settings dialog"""
         try:
+            previous_model = self.settings.get('model', 'small')
+            previous_language = normalize_language(self.settings.get('language', 'auto'))
+            previous_trigger = self.settings.get('trigger_key', 'Mouse5')
             dialog = SettingsDialog(self)
             if dialog.exec() == 1:  # QDialog.Accepted
-                self.hotkey_listener.stop()
                 trigger_key = self.settings.get('trigger_key', 'Mouse5')
-                self.hotkey_listener = GlobalHotkeyListener(trigger_key)
-                self.hotkey_listener.hotkey_triggered.connect(self._toggle_dictation)
-                self.hotkey_listener.hold_started.connect(self._start_hold_dictation)
-                self.hotkey_listener.hold_released.connect(self._stop_hold_dictation)
-                self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
-                self.hotkey_listener.start()
+                if trigger_key != previous_trigger:
+                    self.hotkey_listener.stop()
+                    self.hotkey_listener = self._create_hotkey_listener(trigger_key)
+                    self.hotkey_listener.start()
                 self._refresh_quick_settings()
                 self._show_toast('Settings saved')
-                # Reload model with new settings
-                self._load_model()
+                model_changed = self.settings.get('model', 'small') != previous_model
+                current_language = normalize_language(self.settings.get('language', 'auto'))
+                if current_language != previous_language:
+                    self.whisper_engine.language = current_language
+                if model_changed:
+                    self._load_model()
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to open settings:\n{e}")
@@ -1522,8 +1561,6 @@ class MainWindow(QMainWindow):
         try:
             cleaned = text.strip()
             if cleaned:
-                self.current_text += cleaned + " "
-                
                 timestamp = QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
                 entry = f"[{timestamp}] {cleaned}\n"
                 
@@ -1556,7 +1593,11 @@ class MainWindow(QMainWindow):
             if path.exists():
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                    self.history_edit.setPlainText(content)
+                    self.history_edit.blockSignals(True)
+                    try:
+                        self.history_edit.setPlainText(content)
+                    finally:
+                        self.history_edit.blockSignals(False)
                     self._update_history_stats()
                     entries = [line.strip() for line in content.splitlines() if line.strip()]
                     if entries:
@@ -1571,6 +1612,7 @@ class MainWindow(QMainWindow):
     def _save_history_file(self):
         """Save notepad content to persistent file"""
         try:
+            self.history_save_timer.stop()
             path = self._get_history_file_path()
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(self.history_edit.toPlainText())
@@ -1578,9 +1620,9 @@ class MainWindow(QMainWindow):
             print(f"Error saving history file: {e}")
 
     def _on_history_text_changed(self):
-        """Handle text edits in notepad"""
+        """Update counts immediately and debounce persistent writes."""
         self._update_history_stats()
-        self._save_history_file()
+        self.history_save_timer.start()
 
     def _update_history_stats(self):
         """Update line, word, and character counts"""

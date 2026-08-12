@@ -31,6 +31,7 @@ class SettingsManager:
             'inject_into_focused_window': True,
             'auto_improve_text': True,
             'remove_filler_words': False,
+            'start_on_login': True,
             'use_cloud_api': False,
             'cloud_api_url': 'https://api.whisper-cloud.com/v1/transcribe',
             'volume_threshold': 0.5,  # Microphone volume threshold (0-1)
@@ -50,8 +51,8 @@ class SettingsManager:
                     # Merge with defaults to ensure all keys exist
                     merged = {**self._defaults, **loaded}
                     return merged
-            except Exception as e:
-                print(f"Warning: Could not load settings file: {e}")
+            except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                logger.exception("Could not load settings from %s", self.config_file)
         
         return self._defaults.copy()
     

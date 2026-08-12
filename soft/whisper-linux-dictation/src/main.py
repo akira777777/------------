@@ -6,14 +6,17 @@ Similar to SuperWhisper and Whisper Desktop
 """
 
 import logging
+import os
 import signal
 import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QIcon
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
+from .config.autostart import sync_autostart
 from .gui.main_window import MainWindow
 
 # Configure logging
@@ -26,7 +29,7 @@ logger = logging.getLogger('main')
 class WhisperDictationApp:
     """Main application class that manages the dictation workflow"""
     
-    def __init__(self):
+    def __init__(self, start_hidden=False):
         self.app = QApplication(sys.argv)
         self.app.setQuitOnLastWindowClosed(False)
         
@@ -34,6 +37,12 @@ class WhisperDictationApp:
         self.app.setApplicationName("Whisper Linux Dictation")
         self.app.setApplicationVersion("1.0.0")
         self.app.setOrganizationName("whisper-linux-dictation")
+
+        self.instance_server = None
+        self.is_primary_instance = self._claim_single_instance()
+        if not self.is_primary_instance:
+            logger.info("Another instance is already running; asked it to show its window")
+            return
         
         # Load icon if available
         self.icon_path = Path(__file__).with_name('icon.png')
@@ -54,13 +63,45 @@ class WhisperDictationApp:
         self.main_window.minimize_to_tray = tray_available
         self.app.setQuitOnLastWindowClosed(not tray_available)
         self.app.aboutToQuit.connect(self.main_window.shutdown)
+
+        try:
+            sync_autostart(self.main_window.settings.get('start_on_login', True))
+        except OSError as error:
+            logger.warning("Could not configure autostart: %s", error)
         
-        # Show main GUI window on start
-        self.main_window.show()
-        self.main_window.raise_()
-        self.main_window.activateWindow()
+        # Autostart keeps the service in the tray without stealing focus.
+        if not start_hidden or not tray_available:
+            self._show_main_window()
         
         logger.info(f"Whisper Linux Dictation v{self.app.applicationVersion()} initialized with GUI")
+
+    def _claim_single_instance(self):
+        """Claim a per-user local socket, or focus the already running app."""
+        server_name = f"whisper-linux-dictation-{os.getuid()}"
+        probe = QLocalSocket()
+        probe.connectToServer(server_name)
+        if probe.waitForConnected(200):
+            probe.write(b"show")
+            probe.waitForBytesWritten(200)
+            probe.disconnectFromServer()
+            return False
+
+        # Remove only a stale socket left after an unclean shutdown.
+        QLocalServer.removeServer(server_name)
+        self.instance_server = QLocalServer(self.app)
+        if not self.instance_server.listen(server_name):
+            logger.error("Could not create single-instance socket: %s", self.instance_server.errorString())
+            return False
+        self.instance_server.newConnection.connect(self._on_instance_connection)
+        return True
+
+    def _on_instance_connection(self):
+        """Bring the window forward when the launcher is run again."""
+        while self.instance_server and self.instance_server.hasPendingConnections():
+            client = self.instance_server.nextPendingConnection()
+            client.disconnectFromServer()
+            client.deleteLater()
+        self._show_main_window()
     
     def _setup_tray_icon(self):
         """Setup system tray icon for background mode"""
@@ -132,8 +173,14 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
+        start_hidden = '--background' in sys.argv
+        if start_hidden:
+            sys.argv.remove('--background')
+
         # Create and run the application
-        app = WhisperDictationApp()
+        app = WhisperDictationApp(start_hidden=start_hidden)
+        if not app.is_primary_instance:
+            return 0
         # Let Python process SIGINT while the Qt event loop is running.
         signal_timer = QTimer()
         signal_timer.timeout.connect(lambda: None)

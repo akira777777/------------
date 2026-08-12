@@ -17,7 +17,6 @@ class AudioInputHandler(QObject):
     """Handles real-time audio capture from microphone"""
     
     # Signals for communication with GUI
-    sample_received = pyqtSignal(np.ndarray)  # New audio samples ready
     recording_finished = pyqtSignal(np.ndarray)  # Complete recorded audio ready for Whisper
     volume_changed = pyqtSignal(float)  # Current input volume (0-1)
     error_occurred = pyqtSignal(str)  # Error message
@@ -63,7 +62,9 @@ class AudioInputHandler(QObject):
                 
                 # Calculate volume for VAD
                 if len(indata) > 0:
-                    chunk = indata.copy().flatten()
+                    # Keep one owned copy per callback. The previous implementation
+                    # copied the same block three times and emitted an unused signal.
+                    chunk = np.asarray(indata, dtype=np.float32).reshape(-1).copy()
                     self.recorded_chunks.append(chunk)
                     
                     # RMS is a stable representation of signal energy. Multiplying by
@@ -76,9 +77,8 @@ class AudioInputHandler(QObject):
                         self.volume_history.pop(0)
                     
                     avg_volume = np.mean(self.volume_history)
-                    self.last_samples = indata.copy()
+                    self.last_samples = chunk
                     self.volume_changed.emit(float(avg_volume))
-                    self.sample_received.emit(indata.copy())
             
             # Create and start the audio stream
             self.audio_stream = sd.InputStream(
@@ -182,8 +182,8 @@ class AudioInputHandler(QObject):
                         })
             
             return sorted(inputs, key=lambda x: x['name'])
-        except Exception as e:
-            print(f"Error querying devices: {e}")
+        except Exception:
+            logger.exception("Could not query audio input devices")
             return []
 
 
