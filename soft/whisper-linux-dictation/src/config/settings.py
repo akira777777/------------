@@ -4,7 +4,6 @@ Settings Manager for Whisper Linux Dictation
 Handles user preferences and configuration
 """
 
-import os
 import json
 from pathlib import Path
 

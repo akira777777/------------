@@ -4,8 +4,9 @@ Setup script for Whisper Linux Dictation Application
 Creates a distributable package with .deb support
 """
 
-from setuptools import setup, find_packages
 import os
+
+from setuptools import find_packages, setup
 
 # Get the absolute path to this directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

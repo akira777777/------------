@@ -5,7 +5,7 @@ Uses Silero VAD to detect when user is speaking
 """
 
 import numpy as np
-from PyQt6.QtCore import QObject, pyqtSignal, QMutex, QMutexLocker
+from PyQt6.QtCore import QObject, pyqtSignal
 
 
 class SileroVADController(QObject):
@@ -22,7 +22,7 @@ class SileroVADController(QObject):
         self.threshold = threshold
         
         # State tracking
-        self.is_speaking = False
+        self._is_speaking = False
         self.last_confidence = 0.0
         
         # Audio buffer for VAD processing
@@ -35,12 +35,12 @@ class SileroVADController(QObject):
     def initialize(self):
         """Initialize Silero VAD model"""
         try:
-            import silero_vad
+            from silero_vad import load_silero_vad
             
             print("Initializing Silero VAD...")
             
             # Load the VAD model (lightweight, ~1MB)
-            self.vad_model = silero_vad.load_model(path="silero_vad.onnx")
+            self.vad_model = load_silero_vad()
             
             if self.vad_model is not None:
                 print("Silero VAD initialized successfully")
@@ -72,17 +72,16 @@ class SileroVADController(QObject):
         """
         try:
             # Ensure we have enough samples for VAD processing
-            if len(audio_samples) < 8000:  # At least 0.5 seconds
-                return self.is_speaking
+            if len(audio_samples) < 512:
+                return self._is_speaking
+
+            if not hasattr(self, 'vad_model') or self.vad_model is None:
+                raise RuntimeError("Silero VAD is not initialized")
             
-            # Use Silero VAD to detect speech
-            vad_prob, _, _ = self.vad_model(
-                audio_samples.astype(np.float32),
-                sampling_rate=16000
-            )
-            
-            # Get probability (0-1)
-            prob = float(vad_prob[0]) if len(vad_prob) > 0 else 0.0
+            # Silero expects a 512-sample tensor at 16 kHz for streaming use.
+            import torch
+            chunk = np.asarray(audio_samples[-512:], dtype=np.float32).flatten()
+            prob = float(self.vad_model(torch.from_numpy(chunk), 16000).item())
             
             # Update state with smoothing
             self.last_confidence = (self.smoothing_factor * prob + 
@@ -91,11 +90,11 @@ class SileroVADController(QObject):
             current_speaking = self.last_confidence > self.threshold
             
             # Only update state if it changed
-            if current_speaking != self.is_speaking:
-                self.is_speaking = current_speaking
-                self.speaking_detected.emit(self.is_speaking)
+            if current_speaking != self._is_speaking:
+                self._is_speaking = current_speaking
+                self.speaking_detected.emit(self._is_speaking)
                 
-                if self.is_speaking:
+                if self._is_speaking:
                     print("Speaking detected!")
                 else:
                     print("Silence detected")
@@ -117,14 +116,18 @@ class SileroVADController(QObject):
     
     def reset(self):
         """Reset VAD state"""
-        self.is_speaking = False
+        self._is_speaking = False
         self.last_confidence = 0.0
+        if hasattr(self, 'vad_model') and hasattr(self.vad_model, 'reset_states'):
+            self.vad_model.reset_states()
         print("VAD state reset")
 
 
 def test_vad():
     """Test function to verify Silero VAD works"""
-    import sounddevice as sd
+    import time
+
+    from ..audio.input_handler import AudioInputHandler
     
     vad = SileroVADController(threshold=0.5)
     
@@ -144,7 +147,7 @@ def test_vad():
         while True:
             samples = handler.get_last_samples()
             
-            if len(samples) >= 8000:
+            if len(samples) >= 512:
                 is_speaking = vad.is_speaking(samples)
                 
                 # Display status
@@ -154,7 +157,7 @@ def test_vad():
                 status = "🎤 SPEAKING" if is_speaking else "🔇 SILENCE"
                 print(f"{status} | Confidence: {confidence:.2f} | Volume: {volume:.3f}")
             
-            vad.msleep(100)
+            time.sleep(0.1)
     
     except KeyboardInterrupt:
         pass

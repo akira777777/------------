@@ -5,15 +5,16 @@ A lightweight speech-to-text application for Ubuntu/Linux
 Similar to SuperWhisper and Whisper Desktop
 """
 
-import sys
+import logging
 import signal
-from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QTimer
+import sys
 from pathlib import Path
 
+from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+
 from .gui.main_window import MainWindow
-import logging
 
 # Configure logging
 logging.basicConfig(
@@ -49,7 +50,9 @@ class WhisperDictationApp:
         self.tray_icon = QSystemTrayIcon(self.app)
         
         # Setup tray icon and context menu
-        self._setup_tray_icon()
+        tray_available = self._setup_tray_icon()
+        self.main_window.minimize_to_tray = tray_available
+        self.app.setQuitOnLastWindowClosed(not tray_available)
         self.app.aboutToQuit.connect(self.main_window.shutdown)
         
         # Show main GUI window on start
@@ -62,6 +65,10 @@ class WhisperDictationApp:
     def _setup_tray_icon(self):
         """Setup system tray icon for background mode"""
         try:
+            if not QSystemTrayIcon.isSystemTrayAvailable():
+                logger.warning("No system tray is available")
+                return False
+
             if self.icon_path.exists():
                 self.tray_icon.setIcon(QIcon(str(self.icon_path)))
             else:
@@ -83,8 +90,10 @@ class WhisperDictationApp:
             self.tray_icon.show()
             
             logger.info("System tray icon created")
+            return True
         except Exception as e:
             logger.warning(f"Could not setup tray icon: {e}")
+            return False
     
     def _show_main_window(self):
         """Show and bring main window to front"""

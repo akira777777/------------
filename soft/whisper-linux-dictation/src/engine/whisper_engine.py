@@ -4,10 +4,11 @@ Whisper Engine for Linux Dictation
 Uses faster-whisper for optimized speech recognition
 """
 
-import numpy as np
-from PyQt6.QtCore import QObject, pyqtSignal, QThread
-from faster_whisper import WhisperModel
 import logging
+
+import numpy as np
+from faster_whisper import WhisperModel
+from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
 logger = logging.getLogger('whisper_engine')
 
@@ -69,6 +70,7 @@ class WhisperEngine(QObject):
             self.use_cuda = device == 'cuda'
             self.status_changed.emit(f"Model loaded: {model_size} on {device}")
             logger.info(f"Whisper model '{model_size}' loaded successfully")
+            return True
             
         except Exception as e:
             self.model = None
@@ -77,6 +79,7 @@ class WhisperEngine(QObject):
             logger.error(error_msg)
             self.status_changed.emit("Error loading model")
             self.error_occurred.emit(error_msg)
+            return False
     
     def _has_gpu(self):
         """Check if CUDA GPU is available"""
@@ -143,7 +146,8 @@ class WhisperEngine(QObject):
             self.is_processing = False
             self.status_changed.emit(f"Processing error: {str(e)[:50]}")
             self.error_occurred.emit(error_msg)
-        
+            raise
+
         return full_text.strip()
     
     def transcribe_stream(self, audio_callback):
@@ -213,7 +217,6 @@ class WhisperProcessingThread(QThread):
 
 def test_transcription():
     """Test function to verify Whisper model works"""
-    import sounddevice as sd
     
     engine = WhisperEngine()
     

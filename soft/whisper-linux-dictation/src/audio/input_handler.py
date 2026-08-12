@@ -4,11 +4,11 @@ Audio Input Handler for Whisper Linux Dictation
 Captures microphone input using sounddevice and PulseAudio/PipeWire
 """
 
-import sounddevice as sd
-import numpy as np
-from PyQt6.QtCore import QObject, pyqtSignal, QThread
 import logging
 
+import numpy as np
+import sounddevice as sd
+from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +108,8 @@ class AudioInputHandler(QObject):
             self.error_occurred.emit(error_msg)
             return False
     
-    def stop_recording(self):
-        """Stop capturing audio from microphone"""
+    def stop_recording(self, emit_audio=True):
+        """Stop capturing audio, optionally emitting it for transcription."""
         try:
             if not self.is_recording:
                 return np.zeros(0, dtype=np.float32)
@@ -126,7 +126,7 @@ class AudioInputHandler(QObject):
             logger.info("Audio recording stopped")
             
             # Process accumulated audio
-            if self.recorded_chunks:
+            if self.recorded_chunks and emit_audio:
                 full_audio = np.concatenate(self.recorded_chunks)
                 self.recorded_chunks = []
                 logger.info(
@@ -137,6 +137,7 @@ class AudioInputHandler(QObject):
                 self.recording_finished.emit(full_audio)
                 return full_audio
 
+            self.recorded_chunks = []
             return np.zeros(0, dtype=np.float32)
             
         except Exception as e:
@@ -220,6 +221,8 @@ class AudioCaptureThread(QThread):
 
 def test_audio_input():
     """Test function to verify microphone is working"""
+    import time
+
     handler = AudioInputHandler()
     
     print("Testing audio input...")
@@ -248,7 +251,7 @@ def test_audio_input():
                     print("Captured 1 second of audio")
                     break
                 
-                handler.msleep(100)
+                time.sleep(0.1)
         
         except KeyboardInterrupt:
             pass

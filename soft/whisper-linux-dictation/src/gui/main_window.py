@@ -6,20 +6,34 @@ GUI implementation using PyQt6
 
 import sys
 from pathlib import Path
-from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QPushButton, QLabel, QComboBox, QSpinBox, QCheckBox,
-    QGroupBox, QFormLayout, QStatusBar, QSystemTrayIcon,
-    QMessageBox, QDialog, QLineEdit, QTabWidget, QFrame,
-    QScrollArea, QSplitter, QProgressBar, QPlainTextEdit,
-    QFileDialog, QApplication
-)
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QDateTime, QObject, QThread
-from PyQt6.QtGui import QIcon, QFont
 
+from PyQt6.QtCore import QDateTime, QObject, Qt, QThread, QTimer, pyqtSignal
+from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ..audio.input_handler import AudioInputHandler
 from ..config.settings import get_settings
 from ..engine.whisper_engine import WhisperEngine
-from ..audio.input_handler import AudioInputHandler
 
 
 class SettingsDialog(QDialog):
@@ -120,11 +134,15 @@ class SettingsDialog(QDialog):
     def _save_and_close(self):
         """Save settings and close dialog"""
         try:
+            trigger_key = self.trigger_key_edit.text().strip()
+            if not trigger_key or trigger_key.lower() in {'esc', 'escape'}:
+                raise ValueError("Choose a trigger key other than Esc")
+
             # Save all settings
             self.settings.set('model', self.model_combo.currentText())
             lang_code = self.lang_combo.currentData()
             self.settings.set('language', lang_code if lang_code else 'en')
-            self.settings.set('trigger_key', self.trigger_key_edit.text())
+            self.settings.set('trigger_key', trigger_key)
             self.settings.set('auto_copy_to_clipboard', self.auto_copy_check.isChecked())
             self.settings.set('inject_into_focused_window', self.inject_window_check.isChecked())
             
@@ -137,25 +155,33 @@ class SettingsDialog(QDialog):
 
 from pynput import keyboard
 
+
 class GlobalHotkeyListener(QObject):
     hotkey_triggered = pyqtSignal()
+    cancel_triggered = pyqtSignal()
     
     def __init__(self, key_name='F12'):
         super().__init__()
         self.key_name = key_name
         self.listener = None
         self._pressed = False
+        self._escape_pressed = False
 
     def _matches(self, key):
-        configured = self.key_name.strip().lower()
+        configured = self.key_name.strip().lower().replace('-', '_').replace(' ', '_')
+        configured = {'capslock': 'caps_lock', 'escape': 'esc'}.get(configured, configured)
         special_key = getattr(keyboard.Key, configured, None)
         if special_key is not None:
             return key == special_key
-        return getattr(key, 'char', '').lower() == configured
+        return (getattr(key, 'char', None) or '').lower() == configured
         
     def start(self):
         def on_press(key):
             try:
+                if key == keyboard.Key.esc and not self._escape_pressed:
+                    self._escape_pressed = True
+                    self.cancel_triggered.emit()
+                    return
                 if self._matches(key) and not self._pressed:
                     self._pressed = True
                     self.hotkey_triggered.emit()
@@ -163,8 +189,13 @@ class GlobalHotkeyListener(QObject):
                 pass
 
         def on_release(key):
-            if self._matches(key):
-                self._pressed = False
+            try:
+                if key == keyboard.Key.esc:
+                    self._escape_pressed = False
+                if self._matches(key):
+                    self._pressed = False
+            except Exception:
+                pass
                 
         try:
             self.listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -181,10 +212,11 @@ class GlobalHotkeyListener(QObject):
                 pass
             self.listener = None
             self._pressed = False
+            self._escape_pressed = False
 
 
 class TranscriptionWorker(QThread):
-    finished = pyqtSignal(str)
+    succeeded = pyqtSignal(str)
     failed = pyqtSignal(str)
     
     def __init__(self, engine, audio_data, language):
@@ -196,9 +228,28 @@ class TranscriptionWorker(QThread):
     def run(self):
         try:
             text = self.engine.transcribe_audio(self.audio_data, language=self.language)
-            self.finished.emit(text)
+            self.succeeded.emit(text)
         except Exception as e:
             self.failed.emit(str(e))
+
+
+class ModelLoadWorker(QThread):
+    completed = pyqtSignal(bool)
+
+    def __init__(self, engine, model_size, language, use_cuda):
+        super().__init__()
+        self.engine = engine
+        self.model_size = model_size
+        self.language = language
+        self.use_cuda = use_cuda
+
+    def run(self):
+        loaded = self.engine.load_model(
+            model_size=self.model_size,
+            language=self.language,
+            use_cuda=self.use_cuda,
+        )
+        self.completed.emit(loaded)
 
 
 class MainWindow(QMainWindow):
@@ -216,7 +267,9 @@ class MainWindow(QMainWindow):
         self.is_listening = False
         self.current_text = ""
         self.worker = None
+        self.model_worker = None
         self._shutting_down = False
+        self.minimize_to_tray = False
         
         # Timer for status updates
         self.status_timer = QTimer()
@@ -225,21 +278,23 @@ class MainWindow(QMainWindow):
         # Setup UI
         self._create_ui()
         
-        # Load and initialize model
-        self._load_model()
-        
         # Connect signals
         self._connect_signals()
+
+        # Load and initialize model
+        self._load_model()
         
         # Global Hotkey Listener
         trigger_key = self.settings.get('trigger_key', 'F12')
         self.hotkey_listener = GlobalHotkeyListener(trigger_key)
         self.hotkey_listener.hotkey_triggered.connect(self._toggle_dictation)
+        self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
         self.hotkey_listener.start()
 
     def closeEvent(self, event):
         """Keep the application available from the system tray."""
-        if self._shutting_down:
+        if self._shutting_down or not self.minimize_to_tray:
+            self.shutdown()
             event.accept()
         else:
             self.hide()
@@ -253,7 +308,9 @@ class MainWindow(QMainWindow):
         if self.hotkey_listener:
             self.hotkey_listener.stop()
         if self.worker and self.worker.isRunning():
-            self.worker.wait(5000)
+            self.worker.wait()
+        if self.model_worker and self.model_worker.isRunning():
+            self.model_worker.wait()
     
     def _create_ui(self):
         """Create main window UI with Tabs and Notepad/History panel"""
@@ -427,18 +484,46 @@ class MainWindow(QMainWindow):
     def _load_model(self):
         """Load Whisper model based on settings"""
         try:
+            if self.model_worker and self.model_worker.isRunning():
+                return
+
             model_size = self.settings.get('model', 'small')
             language = self.settings.get('language', 'en')
-            
-            # Load model in background thread
-            self.whisper_engine.load_model(
-                model_size=model_size,
-                language=language,
-                use_cuda=self._has_gpu()
+
+            self.status_label.setText(f"Loading Whisper model: {model_size}...")
+            self.detail_label.setText("The first launch may download model files")
+            worker = ModelLoadWorker(
+                self.whisper_engine,
+                model_size,
+                language,
+                self._has_gpu(),
             )
+            self.model_worker = worker
+            worker.completed.connect(self._on_model_loaded)
+            worker.finished.connect(worker.deleteLater)
+            worker.start()
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load model:\n{e}")
+
+    def _on_model_loaded(self, loaded):
+        """Update the interface after background model initialization."""
+        self.model_worker = None
+        if loaded:
+            self.status_label.setText("Ready - Press F12 to start dictating")
+            self.detail_label.setText("")
+            self.indicator_frame.setStyleSheet("QFrame { background-color: #4CAF50; }")
+        else:
+            self.status_label.setText("Whisper model failed to load")
+            self.indicator_frame.setStyleSheet("QFrame { background-color: #f44336; }")
+
+        configured_model = self.settings.get('model', 'small')
+        configured_language = self.settings.get('language', 'en')
+        if loaded and (
+            self.whisper_engine.model_size != configured_model
+            or self.whisper_engine.language != configured_language
+        ):
+            self._load_model()
     
     def _has_gpu(self):
         """Check if GPU is available"""
@@ -455,6 +540,7 @@ class MainWindow(QMainWindow):
         self.whisper_engine.status_changed.connect(self._on_status)
         self.whisper_engine.error_occurred.connect(self._on_error)
         self.audio_handler.recording_finished.connect(self._on_recording_finished)
+        self.audio_handler.error_occurred.connect(self._on_error)
     
     def _toggle_dictation(self):
         """Toggle dictation on/off"""
@@ -466,11 +552,15 @@ class MainWindow(QMainWindow):
     def _start_dictation(self):
         """Start real-time dictation mode"""
         try:
+            if self.worker and self.worker.isRunning():
+                self.detail_label.setText("Please wait for transcription to finish")
+                return
+
             # Start audio capture
             if not self.whisper_engine.is_loaded:
-                self._load_model()
-            if not self.whisper_engine.is_loaded:
-                self.detail_label.setText("Whisper model is not available")
+                if not self.model_worker or not self.model_worker.isRunning():
+                    self._load_model()
+                self.detail_label.setText("Please wait for the Whisper model to load")
                 return
 
             if not self.audio_handler.start_recording():
@@ -537,6 +627,19 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to stop dictation:\n{e}")
 
+    def _cancel_dictation(self):
+        """Discard the active recording without transcribing it."""
+        if not self.is_listening:
+            return
+        self.audio_handler.stop_recording(emit_audio=False)
+        self.is_listening = False
+        self.start_btn.setText(f"Start Dictation ({self.settings.get('trigger_key', 'F12')})")
+        self.status_label.setText("Recording cancelled")
+        self.status_label.setStyleSheet("color: #888888;")
+        self.indicator_frame.setStyleSheet("QFrame { background-color: #888888; }")
+        self.progress_bar.setValue(0)
+        self.detail_label.setText("Audio was discarded")
+
     def _on_recording_finished(self, audio_data):
         """Process recorded audio array through Whisper model"""
         try:
@@ -554,13 +657,19 @@ class MainWindow(QMainWindow):
             self.detail_label.setText("Transcribing audio through Whisper...")
 
             language = self.settings.get('language', 'en')
-            self.worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
-            self.worker.finished.connect(self._on_transcription_completed)
-            self.worker.failed.connect(self._on_error)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.worker.start()
+            worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
+            self.worker = worker
+            worker.succeeded.connect(self._on_transcription_completed)
+            worker.failed.connect(self._on_error)
+            worker.finished.connect(lambda: self._clear_transcription_worker(worker))
+            worker.finished.connect(worker.deleteLater)
+            worker.start()
         except Exception as e:
             print(f"Error starting transcription worker: {e}")
+
+    def _clear_transcription_worker(self, worker):
+        if self.worker is worker:
+            self.worker = None
 
     def _on_transcription_completed(self, text):
         """Handle completed transcription text"""
@@ -574,17 +683,25 @@ class MainWindow(QMainWindow):
             
             should_copy = self.settings.get('auto_copy_to_clipboard', True)
             should_inject = self.settings.get('inject_into_focused_window', True)
+            clipboard = QApplication.clipboard()
+            previous_clipboard = clipboard.text() if should_inject and not should_copy else None
             if should_copy or should_inject:
-                QApplication.clipboard().setText(cleaned)
+                clipboard.setText(cleaned)
 
             if should_inject:
                 try:
-                    import pyautogui
                     import time
+
+                    import pyautogui
                     time.sleep(0.1)
                     pyautogui.hotkey('ctrl', 'v')
+                    if previous_clipboard is not None:
+                        time.sleep(0.1)
                 except Exception as e:
                     print(f"Could not inject text into active window: {e}")
+                finally:
+                    if previous_clipboard is not None:
+                        clipboard.setText(previous_clipboard)
         else:
             self.status_label.setText("No speech detected")
             self.status_label.setStyleSheet("color: #ff9800;")
@@ -600,6 +717,7 @@ class MainWindow(QMainWindow):
                 trigger_key = self.settings.get('trigger_key', 'F12')
                 self.hotkey_listener = GlobalHotkeyListener(trigger_key)
                 self.hotkey_listener.hotkey_triggered.connect(self._toggle_dictation)
+                self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
                 self.hotkey_listener.start()
                 self.start_btn.setText(f"Start Dictation ({trigger_key})")
                 # Reload model with new settings
