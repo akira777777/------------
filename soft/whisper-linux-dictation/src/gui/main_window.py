@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QDateTime, QObject, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QCursor, QFont, QIcon
+from PyQt6.QtGui import QColor, QCursor, QFont, QIcon, QPainter
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -38,6 +38,212 @@ from ..audio.input_handler import AudioInputHandler
 from ..config.settings import get_settings
 from ..engine.whisper_engine import WhisperEngine, normalize_language
 from ..postprocessing import improve_transcript
+
+APP_STYLESHEET = """
+QWidget {
+    color: #17243A;
+    font-family: "Inter", "Noto Sans", "DejaVu Sans", sans-serif;
+    font-size: 13px;
+}
+QMainWindow, QDialog, QWidget#appRoot, QWidget#dialogRoot {
+    background: #F3F6FA;
+}
+QLabel#brandMark {
+    color: #FFFFFF;
+    background: #2D63F3;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: 800;
+}
+QLabel#brandName {
+    color: #17243A;
+    font-size: 16px;
+    font-weight: 750;
+}
+QLabel#brandCaption, QLabel#mutedLabel, QLabel#sectionCaption,
+QLabel#metricLabel, QLabel#historyStats {
+    color: #65728A;
+}
+QLabel#privacyBadge {
+    color: #236757;
+    background: #E2F3ED;
+    border: 1px solid #C5E6DB;
+    border-radius: 11px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 650;
+}
+QFrame#heroCard, QFrame#contentCard, QFrame#metricCard,
+QGroupBox#settingsSection {
+    background: #FFFFFF;
+    border: 1px solid #DCE3EC;
+    border-radius: 16px;
+}
+QFrame#signalPanel {
+    background: #EAF0FF;
+    border: 1px solid #D7E1FF;
+    border-radius: 14px;
+}
+QLabel#eyebrow {
+    color: #2D63F3;
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+}
+QLabel#statusTitle {
+    color: #17243A;
+    font-size: 25px;
+    font-weight: 750;
+}
+QLabel#sectionTitle {
+    color: #17243A;
+    font-size: 17px;
+    font-weight: 700;
+}
+QLabel#metricValue {
+    color: #17243A;
+    font-size: 14px;
+    font-weight: 700;
+}
+QFrame#statusDot {
+    background: #25A37C;
+    border-radius: 5px;
+}
+QFrame#statusDot[state="recording"] { background: #F05D5E; }
+QFrame#statusDot[state="processing"] { background: #2D63F3; }
+QFrame#statusDot[state="error"] { background: #CF3F50; }
+QFrame#statusDot[state="muted"] { background: #96A2B5; }
+QLabel#signalState {
+    color: #2D63F3;
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+}
+QLabel#shortcutKey {
+    color: #334057;
+    background: #EDF1F6;
+    border: 1px solid #D7DEE8;
+    border-bottom: 2px solid #C6CFDC;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+}
+QPushButton {
+    min-height: 38px;
+    padding: 0 16px;
+    background: #FFFFFF;
+    color: #25334A;
+    border: 1px solid #CFD8E5;
+    border-radius: 9px;
+    font-weight: 650;
+}
+QPushButton:hover { background: #F5F8FC; border-color: #AEBBD0; }
+QPushButton:pressed { background: #E9EEF5; }
+QPushButton:focus { border: 2px solid #7FA2FF; }
+QPushButton:disabled { color: #9AA5B7; background: #EEF2F6; border-color: #E2E7EE; }
+QPushButton#primaryButton {
+    color: #FFFFFF;
+    background: #2D63F3;
+    border: 1px solid #2D63F3;
+    min-height: 46px;
+    font-size: 14px;
+}
+QPushButton#primaryButton:hover { background: #2456D8; border-color: #2456D8; }
+QPushButton#primaryButton[recording="true"] { background: #F05D5E; border-color: #F05D5E; }
+QPushButton#dangerButton { color: #B63B4A; }
+QTabWidget::pane { border: 0; background: transparent; top: -1px; }
+QTabBar::tab {
+    color: #68758B;
+    background: transparent;
+    padding: 10px 3px;
+    margin-right: 24px;
+    border-bottom: 2px solid transparent;
+    font-weight: 650;
+}
+QTabBar::tab:selected { color: #2D63F3; border-bottom-color: #2D63F3; }
+QTabBar::tab:hover:!selected { color: #334057; }
+QProgressBar {
+    min-height: 5px;
+    max-height: 5px;
+    background: #E6EBF2;
+    border: 0;
+    border-radius: 2px;
+    text-align: center;
+    color: transparent;
+}
+QProgressBar::chunk { background: #2D63F3; border-radius: 2px; }
+QLineEdit, QComboBox, QPlainTextEdit {
+    background: #FFFFFF;
+    color: #17243A;
+    border: 1px solid #CCD6E3;
+    border-radius: 9px;
+    padding: 8px 10px;
+    selection-background-color: #BED0FF;
+}
+QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus { border: 2px solid #7399FF; }
+QComboBox { min-height: 25px; }
+QComboBox::drop-down { border: 0; width: 28px; }
+QPlainTextEdit { font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace; }
+QGroupBox#settingsSection {
+    margin-top: 12px;
+    padding-top: 14px;
+    font-size: 14px;
+    font-weight: 700;
+}
+QGroupBox#settingsSection::title {
+    subcontrol-origin: margin;
+    left: 14px;
+    padding: 0 6px;
+    color: #25334A;
+}
+QCheckBox { spacing: 9px; padding: 3px 0; }
+QCheckBox::indicator { width: 18px; height: 18px; }
+QCheckBox::indicator:unchecked { background: #FFFFFF; border: 1px solid #BFCADA; border-radius: 5px; }
+QCheckBox::indicator:checked { background: #2D63F3; border: 1px solid #2D63F3; border-radius: 5px; }
+QToolTip { color: #FFFFFF; background: #25334A; border: 0; padding: 6px; }
+"""
+
+
+class WaveformWidget(QWidget):
+    """Compact live audio meter drawn without image assets."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._level = 0.08
+        self._active = False
+        self.setMinimumSize(210, 76)
+        self.setAccessibleName('Microphone input level')
+
+    def set_level(self, level):
+        self._level = max(0.03, min(float(level), 1.0))
+        self.update()
+
+    def set_active(self, active):
+        self._active = bool(active)
+        if not active:
+            self._level = 0.08
+        self.update()
+
+    def paintEvent(self, event):
+        del event
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = QColor('#F05D5E' if self._active else '#2D63F3')
+        muted = QColor('#C3D0F4')
+        bar_width = 6
+        gap = 6
+        count = max(8, self.width() // (bar_width + gap))
+        center = self.height() / 2
+        pattern = (0.32, 0.58, 0.86, 0.48, 1.0, 0.66, 0.4, 0.74)
+        for index in range(count):
+            strength = pattern[index % len(pattern)]
+            amplitude = (8 + self._level * (self.height() - 18) * strength) if self._active else 8 + 10 * strength
+            x = index * (bar_width + gap) + 2
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color if self._active else muted)
+            painter.drawRoundedRect(int(x), int(center - amplitude / 2), bar_width, int(amplitude), 3, 3)
 
 
 def paste_clipboard_text():
@@ -82,7 +288,7 @@ class RecordingIndicator(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setFixedSize(300, 82)
+        self.setFixedSize(340, 82)
 
         self._elapsed_seconds = 0
         self._state = 'ready'
@@ -115,7 +321,7 @@ class RecordingIndicator(QWidget):
         text_layout.setSpacing(2)
         self.state_label = QLabel('Запись')
         self.state_label.setFont(QFont('Sans Serif', 11, QFont.Weight.DemiBold))
-        self.hint_label = QLabel('F12 — завершить')
+        self.hint_label = QLabel('Mouse 5 — удерживайте')
         self.hint_label.setFont(QFont('Sans Serif', 9))
         text_layout.addWidget(self.state_label)
         text_layout.addWidget(self.hint_label)
@@ -159,12 +365,13 @@ class RecordingIndicator(QWidget):
         minutes, seconds = divmod(self._elapsed_seconds, 60)
         self.timer_label.setText(f'{minutes:02d}:{seconds:02d}')
 
-    def start_recording(self, trigger_key='F12'):
+    def start_recording(self, trigger_key='Mouse5', hold_to_talk=False):
         self._hide_generation += 1
         self._elapsed_seconds = 0
         self.timer_label.setText('00:00')
         self.state_label.setText('Запись идёт')
-        self.hint_label.setText(f'{trigger_key} — завершить  ·  Esc — отмена')
+        action = 'отпустите для вставки' if hold_to_talk else 'нажмите для стопа'
+        self.hint_label.setText(f'{trigger_key}: {action}  ·  Esc — отмена')
         self._apply_state('recording')
         self.elapsed_timer.start(1000)
         self._position_on_active_screen()
@@ -185,6 +392,8 @@ class RecordingIndicator(QWidget):
         self._apply_state('processing')
         for bar, height in zip(self.bars, (10, 18, 26, 14)):
             bar.setFixedHeight(height)
+        self._position_on_active_screen()
+        self.show()
 
     def show_result(self, inserted):
         self.elapsed_timer.stop()
@@ -192,6 +401,8 @@ class RecordingIndicator(QWidget):
         self.hint_label.setText('Можно диктовать снова')
         self.timer_label.setText('✓')
         self._apply_state('ready')
+        self._position_on_active_screen()
+        self.show()
         self._hide_later(1400)
 
     def show_cancelled(self, message='Запись отменена'):
@@ -200,6 +411,8 @@ class RecordingIndicator(QWidget):
         self.hint_label.setText('Аудио не сохранено')
         self.timer_label.setText('×')
         self._apply_state('cancelled')
+        self._position_on_active_screen()
+        self.show()
         self._hide_later(1200)
 
     def show_error(self):
@@ -208,6 +421,8 @@ class RecordingIndicator(QWidget):
         self.hint_label.setText('Откройте окно программы')
         self.timer_label.setText('!')
         self._apply_state('error')
+        self._position_on_active_screen()
+        self.show()
         self._hide_later(2200)
 
     def _hide_later(self, delay_ms):
@@ -225,8 +440,10 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        self.setWindowTitle("Whisper Linux Dictation - Settings")
-        self.setMinimumSize(500, 400)
+        self.setWindowTitle("Settings — Whisper Linux Dictation")
+        self.setMinimumSize(600, 620)
+        self.resize(640, 680)
+        self.setStyleSheet(APP_STYLESHEET)
         
         # Load settings
         self.settings = get_settings()
@@ -235,24 +452,35 @@ class SettingsDialog(QDialog):
     
     def _create_ui(self):
         """Create dialog UI"""
+        self.setObjectName('dialogRoot')
         main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(28, 24, 28, 24)
+        main_layout.setSpacing(16)
+
+        heading = QLabel('Settings')
+        heading.setObjectName('statusTitle')
+        main_layout.addWidget(heading)
+        caption = QLabel('Tune recognition and choose what happens after each dictation.')
+        caption.setObjectName('sectionCaption')
+        main_layout.addWidget(caption)
         
         # Model selection group
-        model_group = QGroupBox("Model Selection")
+        model_group = QGroupBox("Recognition")
+        model_group.setObjectName('settingsSection')
         model_layout = QFormLayout(model_group)
+        model_layout.setContentsMargins(18, 22, 18, 18)
+        model_layout.setHorizontalSpacing(24)
+        model_layout.setVerticalSpacing(12)
         
         self.model_combo = QComboBox()
         self.model_combo.addItems(['tiny', 'small', 'base', 'large'])
         self.model_combo.setCurrentText(self.settings.get('model', 'small'))
-        model_layout.addRow("Model Size:", self.model_combo)
-        
-        # Russian/English recognition mode
-        lang_group = QGroupBox("Russian / English Recognition")
-        lang_layout = QFormLayout(lang_group)
+        self.model_combo.setToolTip('Smaller models are faster; larger models are more accurate.')
+        model_layout.addRow("Whisper model", self.model_combo)
         
         self.lang_combo = QComboBox()
         self.languages = [
-            ('Automatic (Russian / English)', 'auto'),
+            ('Automatic — Russian + English', 'auto'),
             ('Russian', 'ru'),
             ('English', 'en'),
         ]
@@ -265,54 +493,69 @@ class SettingsDialog(QDialog):
             self.lang_combo.setCurrentIndex(idx)
         else:
             self.lang_combo.setCurrentIndex(0)
-        lang_layout.addRow("Mode:", self.lang_combo)
+        model_layout.addRow("Language", self.lang_combo)
         
         # Trigger key group
-        key_group = QGroupBox("Trigger Key")
+        key_group = QGroupBox("Shortcut")
+        key_group.setObjectName('settingsSection')
         key_layout = QFormLayout(key_group)
+        key_layout.setContentsMargins(18, 22, 18, 18)
+        key_layout.setHorizontalSpacing(24)
+        key_layout.setVerticalSpacing(10)
         
         self.trigger_key_edit = QLineEdit()
-        self.trigger_key_edit.setText(self.settings.get('trigger_key', 'F12'))
-        key_layout.addRow("Activate Key:", self.trigger_key_edit)
+        self.trigger_key_edit.setText(self.settings.get('trigger_key', 'Mouse5'))
+        self.trigger_key_edit.setPlaceholderText('Mouse5, F12, CapsLock…')
+        self.trigger_key_edit.setClearButtonEnabled(True)
+        key_layout.addRow("Dictation key", self.trigger_key_edit)
+        shortcut_hint = QLabel('Mouse side buttons use hold-to-talk. Keyboard keys toggle recording.')
+        shortcut_hint.setObjectName('sectionCaption')
+        shortcut_hint.setWordWrap(True)
+        key_layout.addRow('', shortcut_hint)
         
         # Additional options group
-        opts_group = QGroupBox("Additional Options")
+        opts_group = QGroupBox("After dictation")
+        opts_group.setObjectName('settingsSection')
         opts_layout = QVBoxLayout(opts_group)
+        opts_layout.setContentsMargins(18, 22, 18, 18)
+        opts_layout.setSpacing(10)
         
-        self.auto_copy_check = QCheckBox("Auto-copy to clipboard after typing")
+        self.auto_copy_check = QCheckBox("Keep the result on the clipboard")
         self.auto_copy_check.setChecked(self.settings.get('auto_copy_to_clipboard', True))
         opts_layout.addWidget(self.auto_copy_check)
         
-        self.inject_window_check = QCheckBox("Automatically paste text after recording")
+        self.inject_window_check = QCheckBox("Paste into the previously focused app")
         self.inject_window_check.setChecked(self.settings.get('inject_into_focused_window', True))
         opts_layout.addWidget(self.inject_window_check)
 
-        self.improve_text_check = QCheckBox("Automatically improve recognized text")
+        self.improve_text_check = QCheckBox("Polish capitalization, spacing, and punctuation")
         self.improve_text_check.setChecked(self.settings.get('auto_improve_text', True))
         opts_layout.addWidget(self.improve_text_check)
 
-        self.remove_fillers_check = QCheckBox("Remove filler words (optional)")
+        self.remove_fillers_check = QCheckBox("Remove filler words")
         self.remove_fillers_check.setChecked(self.settings.get('remove_filler_words', False))
         self.remove_fillers_check.setEnabled(self.improve_text_check.isChecked())
         self.improve_text_check.toggled.connect(self.remove_fillers_check.setEnabled)
         opts_layout.addWidget(self.remove_fillers_check)
         
         main_layout.addWidget(model_group)
-        main_layout.addWidget(lang_group)
         main_layout.addWidget(key_group)
-        main_layout.addSpacing(10)
         main_layout.addWidget(opts_group)
+        main_layout.addStretch(1)
         
         # Buttons
         button_layout = QHBoxLayout()
-        
-        self.save_btn = QPushButton("Save & Close")
-        self.save_btn.clicked.connect(self._save_and_close)
-        button_layout.addWidget(self.save_btn)
+        button_layout.addStretch(1)
         
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(self.cancel_btn)
+
+        self.save_btn = QPushButton("Save changes")
+        self.save_btn.setObjectName('primaryButton')
+        self.save_btn.setDefault(True)
+        self.save_btn.clicked.connect(self._save_and_close)
+        button_layout.addWidget(self.save_btn)
         
         main_layout.addLayout(button_layout)
     
@@ -333,26 +576,40 @@ class SettingsDialog(QDialog):
             self.settings.set('auto_improve_text', self.improve_text_check.isChecked())
             self.settings.set('remove_filler_words', self.remove_fillers_check.isChecked())
             
-            QMessageBox.information(self, "Success", "Settings saved successfully!")
             self.accept()
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save settings:\n{e}")
 
 
-from pynput import keyboard
+from pynput import keyboard, mouse
 
 
 class GlobalHotkeyListener(QObject):
     hotkey_triggered = pyqtSignal()
+    hold_started = pyqtSignal()
+    hold_released = pyqtSignal()
     cancel_triggered = pyqtSignal()
     
-    def __init__(self, key_name='F12'):
+    def __init__(self, key_name='Mouse5'):
         super().__init__()
         self.key_name = key_name
         self.listener = None
+        self.mouse_listener = None
         self._pressed = False
+        self._mouse_pressed = False
         self._escape_pressed = False
+
+    @property
+    def is_hold_to_talk(self):
+        configured = self.key_name.strip().lower().replace(' ', '')
+        return configured in {'mouse4', 'mouse5', 'x1', 'x2'}
+
+    def _configured_mouse_button(self):
+        configured = self.key_name.strip().lower().replace(' ', '')
+        if configured in {'mouse4', 'x1'}:
+            return getattr(mouse.Button, 'button8', getattr(mouse.Button, 'x1', None))
+        return getattr(mouse.Button, 'button9', getattr(mouse.Button, 'x2', None))
 
     def _matches(self, key):
         configured = self.key_name.strip().lower().replace('-', '_').replace(' ', '_')
@@ -369,7 +626,7 @@ class GlobalHotkeyListener(QObject):
                     self._escape_pressed = True
                     self.cancel_triggered.emit()
                     return
-                if self._matches(key) and not self._pressed:
+                if not self.is_hold_to_talk and self._matches(key) and not self._pressed:
                     self._pressed = True
                     self.hotkey_triggered.emit()
             except Exception:
@@ -391,6 +648,26 @@ class GlobalHotkeyListener(QObject):
         except Exception as e:
             print(f"Could not start global hotkey listener: {e}")
 
+        if self.is_hold_to_talk:
+            target_button = self._configured_mouse_button()
+
+            def on_click(x, y, button, pressed):
+                if button != target_button:
+                    return
+                if pressed and not self._mouse_pressed:
+                    self._mouse_pressed = True
+                    self.hold_started.emit()
+                elif not pressed and self._mouse_pressed:
+                    self._mouse_pressed = False
+                    self.hold_released.emit()
+
+            try:
+                self.mouse_listener = mouse.Listener(on_click=on_click)
+                self.mouse_listener.daemon = True
+                self.mouse_listener.start()
+            except Exception as e:
+                print(f"Could not start mouse hotkey listener: {e}")
+
     def stop(self):
         if self.listener:
             try:
@@ -400,6 +677,13 @@ class GlobalHotkeyListener(QObject):
             self.listener = None
             self._pressed = False
             self._escape_pressed = False
+        if self.mouse_listener:
+            try:
+                self.mouse_listener.stop()
+            except Exception:
+                pass
+            self.mouse_listener = None
+        self._mouse_pressed = False
 
 
 class TranscriptionWorker(QThread):
@@ -457,6 +741,7 @@ class MainWindow(QMainWindow):
         self.model_worker = None
         self._shutting_down = False
         self.minimize_to_tray = False
+        self._hold_to_talk_active = False
         
         # Timer for status updates
         self.status_timer = QTimer()
@@ -464,6 +749,7 @@ class MainWindow(QMainWindow):
         
         # Setup UI
         self._create_ui()
+        self.recording_indicator = RecordingIndicator()
         
         # Connect signals
         self._connect_signals()
@@ -472,9 +758,11 @@ class MainWindow(QMainWindow):
         self._load_model()
         
         # Global Hotkey Listener
-        trigger_key = self.settings.get('trigger_key', 'F12')
+        trigger_key = self.settings.get('trigger_key', 'Mouse5')
         self.hotkey_listener = GlobalHotkeyListener(trigger_key)
         self.hotkey_listener.hotkey_triggered.connect(self._toggle_dictation)
+        self.hotkey_listener.hold_started.connect(self._start_hold_dictation)
+        self.hotkey_listener.hold_released.connect(self._stop_hold_dictation)
         self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
         self.hotkey_listener.start()
 
@@ -498,6 +786,7 @@ class MainWindow(QMainWindow):
             self.worker.wait()
         if self.model_worker and self.model_worker.isRunning():
             self.model_worker.wait()
+        self.recording_indicator.close()
     
     def _create_ui(self):
         """Create main window UI with Tabs and Notepad/History panel"""
@@ -522,7 +811,7 @@ class MainWindow(QMainWindow):
         title_group = QGroupBox("Whisper Linux Dictation")
         title_layout = QHBoxLayout(title_group)
         
-        self.status_label = QLabel("Ready - Press F12 to start dictating")
+        self.status_label = QLabel("Ready - Hold Mouse 5 to dictate")
         self.status_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.addWidget(self.status_label)
@@ -543,7 +832,7 @@ class MainWindow(QMainWindow):
         controls_group = QGroupBox("Controls")
         controls_layout = QHBoxLayout(controls_group)
         
-        self.start_btn = QPushButton("Start Dictation (F12)")
+        self.start_btn = QPushButton("Start Dictation")
         self.start_btn.setFixedSize(160, 40)
         self.start_btn.setStyleSheet("""
             QPushButton {
@@ -609,8 +898,8 @@ class MainWindow(QMainWindow):
         
         shortcuts_text = """
         <b>Dictation:</b><br>
-        • Press F12 (or click button) to start speaking<br>
-        • Press F12 or click Stop when done<br>
+        • Hold Mouse 5 and speak; release it to insert text<br>
+        • The on-screen button uses click-to-start / click-to-stop<br>
         • Press Esc to cancel<br><br>
         <b>Notepad & History:</b><br>
         • Switch to the "Notepad & History" tab to view all transcribed entries<br>
@@ -697,7 +986,7 @@ class MainWindow(QMainWindow):
         """Update the interface after background model initialization."""
         self.model_worker = None
         if loaded:
-            self.status_label.setText("Ready - Press F12 to start dictating")
+            self.status_label.setText("Ready - Hold Mouse 5 to dictate")
             self.detail_label.setText("")
             self.indicator_frame.setStyleSheet("QFrame { background-color: #4CAF50; }")
         else:
@@ -729,6 +1018,7 @@ class MainWindow(QMainWindow):
         self.whisper_engine.language_detected.connect(self._on_language_detected)
         self.audio_handler.recording_finished.connect(self._on_recording_finished)
         self.audio_handler.error_occurred.connect(self._on_error)
+        self.audio_handler.volume_changed.connect(self.recording_indicator.update_volume)
     
     def _toggle_dictation(self):
         """Toggle dictation on/off"""
@@ -736,10 +1026,21 @@ class MainWindow(QMainWindow):
             self._start_dictation()
         else:
             self._stop_dictation()
+
+    def _start_hold_dictation(self):
+        """Begin recording while Mouse 5 is held."""
+        self._start_dictation(hold_to_talk=True)
+
+    def _stop_hold_dictation(self):
+        """Transcribe and insert when Mouse 5 is released."""
+        if self.is_listening and self._hold_to_talk_active:
+            self._stop_dictation()
     
-    def _start_dictation(self):
+    def _start_dictation(self, hold_to_talk=False):
         """Start real-time dictation mode"""
         try:
+            if self.is_listening:
+                return
             if self.worker and self.worker.isRunning():
                 self.detail_label.setText("Please wait for transcription to finish")
                 return
@@ -754,9 +1055,15 @@ class MainWindow(QMainWindow):
             if not self.audio_handler.start_recording():
                 self.detail_label.setText("Could not open the microphone")
                 return
+
+            self.recording_indicator.start_recording(
+                self.settings.get('trigger_key', 'Mouse5'),
+                hold_to_talk=hold_to_talk,
+            )
             
             # Update UI state
             self.is_listening = True
+            self._hold_to_talk_active = hold_to_talk
             self.start_btn.setText("Stop Dictation")
             self.start_btn.setStyleSheet("""
                 QPushButton {
@@ -793,7 +1100,8 @@ class MainWindow(QMainWindow):
             
             # Update UI state
             self.is_listening = False
-            self.start_btn.setText("Start Dictation (F12)")
+            self._hold_to_talk_active = False
+            self.start_btn.setText("Start Dictation")
             self.start_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #4CAF50;
@@ -821,21 +1129,25 @@ class MainWindow(QMainWindow):
             return
         self.audio_handler.stop_recording(emit_audio=False)
         self.is_listening = False
-        self.start_btn.setText(f"Start Dictation ({self.settings.get('trigger_key', 'F12')})")
+        self._hold_to_talk_active = False
+        self.start_btn.setText("Start Dictation")
         self.status_label.setText("Recording cancelled")
         self.status_label.setStyleSheet("color: #888888;")
         self.indicator_frame.setStyleSheet("QFrame { background-color: #888888; }")
         self.progress_bar.setValue(0)
         self.detail_label.setText("Audio was discarded")
+        self.recording_indicator.show_cancelled()
 
     def _on_recording_finished(self, audio_data):
         """Process recorded audio array through Whisper model"""
         try:
+            self.recording_indicator.show_processing()
             if len(audio_data) < 3200:  # less than 0.2 sec
                 self.status_label.setText("Recording too short")
                 self.status_label.setStyleSheet("color: #888888;")
                 self.indicator_frame.setStyleSheet("QFrame { background-color: #888888; }")
-                self.detail_label.setText("Hold button/F12 longer to speak")
+                self.detail_label.setText("Hold Mouse 5 longer while speaking")
+                self.recording_indicator.show_cancelled('Запись слишком короткая')
                 return
 
             self.status_label.setText("Recognizing speech...")
@@ -877,7 +1189,7 @@ class MainWindow(QMainWindow):
             )
         if cleaned:
             self._on_transcription(cleaned)
-            self.status_label.setText("Ready - Press F12 to start dictating")
+            self.status_label.setText("Ready - Hold Mouse 5 to dictate")
             self.status_label.setStyleSheet("color: #4CAF50;")
             self.indicator_frame.setStyleSheet("QFrame { background-color: #4CAF50; }")
             
@@ -898,11 +1210,13 @@ class MainWindow(QMainWindow):
                 else:
                     if previous_clipboard is not None:
                         QTimer.singleShot(250, lambda value=previous_clipboard: clipboard.setText(value))
+            self.recording_indicator.show_result(should_inject)
         else:
             self.status_label.setText("No speech detected")
             self.status_label.setStyleSheet("color: #ff9800;")
             self.indicator_frame.setStyleSheet("QFrame { background-color: #ff9800; }")
             self.detail_label.setText("No speech recognized in recording")
+            self.recording_indicator.show_cancelled('Речь не распознана')
     
     def _open_settings(self):
         """Open settings dialog"""
@@ -910,12 +1224,14 @@ class MainWindow(QMainWindow):
             dialog = SettingsDialog(self)
             if dialog.exec() == 1:  # QDialog.Accepted
                 self.hotkey_listener.stop()
-                trigger_key = self.settings.get('trigger_key', 'F12')
+                trigger_key = self.settings.get('trigger_key', 'Mouse5')
                 self.hotkey_listener = GlobalHotkeyListener(trigger_key)
                 self.hotkey_listener.hotkey_triggered.connect(self._toggle_dictation)
+                self.hotkey_listener.hold_started.connect(self._start_hold_dictation)
+                self.hotkey_listener.hold_released.connect(self._stop_hold_dictation)
                 self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
                 self.hotkey_listener.start()
-                self.start_btn.setText(f"Start Dictation ({trigger_key})")
+                self.start_btn.setText("Start Dictation")
                 # Reload model with new settings
                 self._load_model()
         
@@ -1067,6 +1383,7 @@ class MainWindow(QMainWindow):
     def _on_error(self, error_msg):
         """Handle errors"""
         try:
+            self.recording_indicator.show_error()
             QMessageBox.warning(self, "Warning", f"{error_msg}\n\nCheck the console for details.")
         
         except Exception as e:
@@ -1092,7 +1409,7 @@ class MainWindow(QMainWindow):
                             background-color: #4CAF50;
                         }
                     """)
-                    self.status_label.setText("Ready - Press F12 to start dictating")
+                    self.status_label.setText("Ready - Hold Mouse 5 to dictate")
         
         except Exception as e:
             print(f"Error in status update: {e}")

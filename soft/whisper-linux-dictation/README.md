@@ -4,7 +4,7 @@ A lightweight, privacy-focused speech-to-text application for Linux Ubuntu, simi
 
 ## Features
 
-- **Real-time Dictation**: Press a key (default `F12`), speak, then press it again to transcribe into the focused text field
+- **Push-to-Talk Dictation**: Hold `Mouse 5`, speak, then release it to transcribe and paste into the focused field
 - **Multiple Model Sizes**: Choose from tiny, small, base, or large models based on your needs
 - **Automatic Russian/English Recognition**: Switch between Russian and English without changing settings
 - **100% Local Processing**: Your audio never leaves your computer (except when using cloud API)
@@ -52,12 +52,12 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 2. **Configure your settings** (optional, defaults work for most users):
    - Click "Settings" in the top menu
    - Choose your preferred model size and language
-   - Set your trigger key if you want to change from `F12`
+   - Keep `Mouse5` as push-to-talk, or choose a keyboard toggle key
 
 3. **Start dictating**:
-   - Press `F12` (or your configured key) to start
+   - Hold `Mouse 5` to start recording
    - Speak clearly into your microphone
-   - Press `F12` again when done
+   - Release `Mouse 5` to recognize, improve, and paste the text
    - Your speech will be typed into the currently focused text field!
 
 ## Model Sizes & Performance
@@ -71,7 +71,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ## Keyboard Shortcuts
 
-- `F12` - Toggle dictation (default)
+- `Mouse 5` - Hold to record; release to recognize and paste (default)
+- Keyboard keys such as `F12` use toggle mode when configured
 - `Esc` - Cancel current recording
 
 ## Configuration Options

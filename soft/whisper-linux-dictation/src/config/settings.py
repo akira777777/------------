@@ -22,7 +22,7 @@ class SettingsManager:
         self._defaults = {
             'model': 'small',  # tiny, small, base, large
             'language': 'auto',  # Automatic Russian/English recognition
-            'trigger_key': 'F12',  # Key to activate dictation
+            'trigger_key': 'Mouse5',  # Hold the side mouse button to dictate
             'auto_copy_to_clipboard': True,
             'inject_into_focused_window': True,
             'auto_improve_text': True,
