@@ -649,15 +649,16 @@ class SettingsDialog(QDialog):
             if not trigger_key or trigger_key.lower() in {'esc', 'escape'}:
                 raise ValueError("Choose a trigger key other than Esc")
 
-            # Save all settings
-            self.settings.set('model', self.model_combo.currentText())
             lang_code = self.lang_combo.currentData()
-            self.settings.set('language', normalize_language(lang_code))
-            self.settings.set('trigger_key', trigger_key)
-            self.settings.set('auto_copy_to_clipboard', self.auto_copy_check.isChecked())
-            self.settings.set('inject_into_focused_window', self.inject_window_check.isChecked())
-            self.settings.set('auto_improve_text', self.improve_text_check.isChecked())
-            self.settings.set('remove_filler_words', self.remove_fillers_check.isChecked())
+            self.settings.update({
+                'model': self.model_combo.currentText(),
+                'language': normalize_language(lang_code),
+                'trigger_key': trigger_key,
+                'auto_copy_to_clipboard': self.auto_copy_check.isChecked(),
+                'inject_into_focused_window': self.inject_window_check.isChecked(),
+                'auto_improve_text': self.improve_text_check.isChecked(),
+                'remove_filler_words': self.remove_fillers_check.isChecked(),
+            })
             
             self.accept()
         

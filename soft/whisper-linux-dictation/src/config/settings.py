@@ -5,7 +5,11 @@ Handles user preferences and configuration
 """
 
 import json
+import logging
 from pathlib import Path
+
+
+logger = logging.getLogger(__name__)
 
 
 class SettingsManager:
@@ -52,13 +56,18 @@ class SettingsManager:
         return self._defaults.copy()
     
     def save(self):
-        """Save current settings to file"""
+        """Atomically save current settings to avoid partial JSON files."""
+        temp_file = self.config_file.with_suffix('.json.tmp')
         try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(self._settings, f, indent=2)
-            print(f"Settings saved to {self.config_file}")
-        except Exception as e:
-            print(f"Error saving settings: {e}")
+                f.flush()
+            temp_file.replace(self.config_file)
+            logger.info("Settings saved to %s", self.config_file)
+        except Exception:
+            temp_file.unlink(missing_ok=True)
+            logger.exception("Could not save settings to %s", self.config_file)
+            raise
     
     def load(self):
         """Load and return current settings"""
@@ -71,18 +80,27 @@ class SettingsManager:
     
     def set(self, key, value):
         """Set a specific setting value"""
-        if key in self._defaults:
-            self._settings[key] = value
+        self.update({key: value})
+
+    def update(self, values):
+        """Validate and persist several settings with a single disk write."""
+        unknown = set(values) - set(self._defaults)
+        if unknown:
+            names = ', '.join(sorted(unknown))
+            raise ValueError(f"Unknown setting(s): {names}")
+
+        previous = self._settings.copy()
+        self._settings.update(values)
+        try:
             self.save()
-            print(f"Setting '{key}' updated to {value}")
-        else:
-            raise ValueError(f"Unknown setting: {key}")
+        except Exception:
+            self._settings = previous
+            raise
     
     def reset_to_defaults(self):
         """Reset all settings to defaults"""
         self._settings = self._defaults.copy()
         self.save()
-        print("Settings reset to defaults")
 
 
 # Singleton instance for easy access
