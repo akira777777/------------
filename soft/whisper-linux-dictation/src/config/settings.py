@@ -21,7 +21,7 @@ class SettingsManager:
         # Default settings
         self._defaults = {
             'model': 'small',  # tiny, small, base, large
-            'language': 'en',  # ISO language code
+            'language': 'auto',  # Automatic Russian/English recognition
             'trigger_key': 'F12',  # Key to activate dictation
             'auto_copy_to_clipboard': True,
             'inject_into_focused_window': True,

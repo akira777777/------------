@@ -11,6 +11,12 @@ from faster_whisper import WhisperModel
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
 logger = logging.getLogger('whisper_engine')
+SUPPORTED_LANGUAGES = {'auto', 'ru', 'en'}
+
+
+def normalize_language(language):
+    """Return one of the language modes supported by this application."""
+    return language if language in SUPPORTED_LANGUAGES else 'auto'
 
 
 class WhisperEngine(QObject):
@@ -21,6 +27,7 @@ class WhisperEngine(QObject):
     progress_updated = pyqtSignal(float, str)  # Progress (0-100), message
     status_changed = pyqtSignal(str)  # Current status message
     error_occurred = pyqtSignal(str)  # Error message
+    language_detected = pyqtSignal(str, float)  # Language code and confidence
     
     def __init__(self):
         super().__init__()
@@ -34,7 +41,9 @@ class WhisperEngine(QObject):
         
         # Model configuration from settings
         self.model_size = 'tiny'  # tiny, small, base, large
-        self.language = 'en'
+        self.language = 'auto'
+        self.last_detected_language = 'auto'
+        self.last_language_probability = 0.0
         self.use_cuda = False
         
         # Thread for background processing
@@ -42,7 +51,7 @@ class WhisperEngine(QObject):
     
     def load_model(self, model_size='small', language='en', use_cuda=True):
         """Load the Whisper model (thread-safe)"""
-        
+        language = normalize_language(language)
         try:
             self.is_loaded = False
             logger.info(f"Loading Whisper model: {model_size} ({language})")
@@ -113,21 +122,33 @@ class WhisperEngine(QObject):
             self.status_changed.emit("Processing...")
             
             # Use provided language or default
-            lang = language or self.language
+            lang = normalize_language(language or self.language)
             
             # Process with faster-whisper
             segments, info = self.model.transcribe(
                 audio_samples,
                 language=lang if lang != 'auto' else None,
                 task='transcribe',
-                beam_size=5,
-                word_timestamps=True,
+                beam_size=3,
+                word_timestamps=False,
+                condition_on_previous_text=False,
                 vad_filter=True,    # Use VAD to reduce noise
                 vad_parameters=dict(
                     min_silence_duration_ms=300,  # 300ms silence
                     threshold=0.5,
                     max_speech_duration_s=60,
                 ),
+            )
+
+            detected_language = normalize_language(getattr(info, 'language', lang))
+            language_probability = float(getattr(info, 'language_probability', 1.0))
+            self.last_detected_language = detected_language
+            self.last_language_probability = language_probability
+            self.language_detected.emit(detected_language, language_probability)
+            logger.info(
+                "Recognition language: %s (%.1f%%)",
+                detected_language,
+                language_probability * 100,
             )
             
             # Combine all segments into single text

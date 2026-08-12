@@ -6,7 +6,7 @@ A lightweight, privacy-focused speech-to-text application for Linux Ubuntu, simi
 
 - **Real-time Dictation**: Press a key (default `F12`), speak, then press it again to transcribe into the focused text field
 - **Multiple Model Sizes**: Choose from tiny, small, base, or large models based on your needs
-- **99+ Languages Support**: Transcribe in English, Spanish, French, German, Italian, Portuguese, Russian, Chinese, Japanese, Korean, and many more
+- **Automatic Russian/English Recognition**: Switch between Russian and English without changing settings
 - **100% Local Processing**: Your audio never leaves your computer (except when using cloud API)
 - **Automatic Text Improvement**: Locally cleans spacing, punctuation, capitalization, and accidental repetitions
 - **Cross-Distribution**: Works on Ubuntu, Fedora, Arch Linux, Debian, and other distributions
@@ -78,7 +78,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ### In-App Settings:
 - **Model Selection**: Choose between tiny, small, base, or large models
-- **Language**: Select transcription language (auto-detect available)
+- **Language**: Automatic Russian/English recognition, with optional fixed Russian or English mode
+- **Automatic Paste**: Paste the improved text into the focused application after recording
 - **Trigger Key**: Customize the key that activates dictation
 - **Clipboard Copy**: Automatically copy to clipboard after typing
 - **Text Improvement**: Normalize recognized text and optionally remove filler words

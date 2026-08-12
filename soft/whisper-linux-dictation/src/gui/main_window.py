@@ -4,6 +4,9 @@ Main Window for Whisper Linux Dictation
 GUI implementation using PyQt6
 """
 
+import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,8 +36,28 @@ from PyQt6.QtWidgets import (
 
 from ..audio.input_handler import AudioInputHandler
 from ..config.settings import get_settings
-from ..engine.whisper_engine import WhisperEngine
+from ..engine.whisper_engine import WhisperEngine, normalize_language
 from ..postprocessing import improve_transcript
+
+
+def paste_clipboard_text():
+    """Send Ctrl+V using the native display path when possible."""
+    if os.environ.get('WAYLAND_DISPLAY') and shutil.which('wtype'):
+        try:
+            subprocess.run(
+                ['wtype', '-M', 'ctrl', 'v', '-m', 'ctrl'],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+            )
+            return
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    import pyautogui
+
+    pyautogui.hotkey('ctrl', 'v')
 
 
 class SettingsDialog(QDialog):
@@ -64,34 +87,26 @@ class SettingsDialog(QDialog):
         self.model_combo.setCurrentText(self.settings.get('model', 'small'))
         model_layout.addRow("Model Size:", self.model_combo)
         
-        # Language selection group
-        lang_group = QGroupBox("Language")
+        # Russian/English recognition mode
+        lang_group = QGroupBox("Russian / English Recognition")
         lang_layout = QFormLayout(lang_group)
         
         self.lang_combo = QComboBox()
         self.languages = [
-            ('English', 'en'),
-            ('Spanish', 'es'),
-            ('French', 'fr'),
-            ('German', 'de'),
-            ('Italian', 'it'),
-            ('Portuguese', 'pt'),
+            ('Automatic (Russian / English)', 'auto'),
             ('Russian', 'ru'),
-            ('Chinese', 'zh'),
-            ('Japanese', 'ja'),
-            ('Korean', 'ko'),
-            ('Auto-detect', 'auto')
+            ('English', 'en'),
         ]
         for display_name, code in self.languages:
             self.lang_combo.addItem(display_name, code)
         
-        current_lang = self.settings.get('language', 'en')
+        current_lang = normalize_language(self.settings.get('language', 'auto'))
         idx = self.lang_combo.findData(current_lang)
         if idx >= 0:
             self.lang_combo.setCurrentIndex(idx)
         else:
             self.lang_combo.setCurrentIndex(0)
-        lang_layout.addRow("Language:", self.lang_combo)
+        lang_layout.addRow("Mode:", self.lang_combo)
         
         # Trigger key group
         key_group = QGroupBox("Trigger Key")
@@ -109,7 +124,7 @@ class SettingsDialog(QDialog):
         self.auto_copy_check.setChecked(self.settings.get('auto_copy_to_clipboard', True))
         opts_layout.addWidget(self.auto_copy_check)
         
-        self.inject_window_check = QCheckBox("Inject into focused window (X11/Wayland)")
+        self.inject_window_check = QCheckBox("Automatically paste text after recording")
         self.inject_window_check.setChecked(self.settings.get('inject_into_focused_window', True))
         opts_layout.addWidget(self.inject_window_check)
 
@@ -152,7 +167,7 @@ class SettingsDialog(QDialog):
             # Save all settings
             self.settings.set('model', self.model_combo.currentText())
             lang_code = self.lang_combo.currentData()
-            self.settings.set('language', lang_code if lang_code else 'en')
+            self.settings.set('language', normalize_language(lang_code))
             self.settings.set('trigger_key', trigger_key)
             self.settings.set('auto_copy_to_clipboard', self.auto_copy_check.isChecked())
             self.settings.set('inject_into_focused_window', self.inject_window_check.isChecked())
@@ -501,7 +516,7 @@ class MainWindow(QMainWindow):
                 return
 
             model_size = self.settings.get('model', 'small')
-            language = self.settings.get('language', 'en')
+            language = normalize_language(self.settings.get('language', 'auto'))
 
             self.status_label.setText(f"Loading Whisper model: {model_size}...")
             self.detail_label.setText("The first launch may download model files")
@@ -531,7 +546,7 @@ class MainWindow(QMainWindow):
             self.indicator_frame.setStyleSheet("QFrame { background-color: #f44336; }")
 
         configured_model = self.settings.get('model', 'small')
-        configured_language = self.settings.get('language', 'en')
+        configured_language = normalize_language(self.settings.get('language', 'auto'))
         if loaded and (
             self.whisper_engine.model_size != configured_model
             or self.whisper_engine.language != configured_language
@@ -552,6 +567,7 @@ class MainWindow(QMainWindow):
         self.whisper_engine.progress_updated.connect(self._on_progress)
         self.whisper_engine.status_changed.connect(self._on_status)
         self.whisper_engine.error_occurred.connect(self._on_error)
+        self.whisper_engine.language_detected.connect(self._on_language_detected)
         self.audio_handler.recording_finished.connect(self._on_recording_finished)
         self.audio_handler.error_occurred.connect(self._on_error)
     
@@ -669,7 +685,7 @@ class MainWindow(QMainWindow):
             self.progress_bar.setValue(40)
             self.detail_label.setText("Transcribing audio through Whisper...")
 
-            language = self.settings.get('language', 'en')
+            language = normalize_language(self.settings.get('language', 'auto'))
             worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
             self.worker = worker
             worker.succeeded.connect(self._on_transcription_completed)
@@ -689,9 +705,15 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(100)
         cleaned = text.strip()
         if cleaned and self.settings.get('auto_improve_text', True):
+            configured_language = normalize_language(self.settings.get('language', 'auto'))
+            text_language = (
+                self.whisper_engine.last_detected_language
+                if configured_language == 'auto'
+                else configured_language
+            )
             cleaned = improve_transcript(
                 cleaned,
-                language=self.settings.get('language', 'auto'),
+                language=text_language,
                 remove_fillers=self.settings.get('remove_filler_words', False),
             )
         if cleaned:
@@ -709,18 +731,14 @@ class MainWindow(QMainWindow):
 
             if should_inject:
                 try:
-                    import time
-
-                    import pyautogui
-                    time.sleep(0.1)
-                    pyautogui.hotkey('ctrl', 'v')
-                    if previous_clipboard is not None:
-                        time.sleep(0.1)
+                    paste_clipboard_text()
                 except Exception as e:
                     print(f"Could not inject text into active window: {e}")
-                finally:
                     if previous_clipboard is not None:
                         clipboard.setText(previous_clipboard)
+                else:
+                    if previous_clipboard is not None:
+                        QTimer.singleShot(250, lambda value=previous_clipboard: clipboard.setText(value))
         else:
             self.status_label.setText("No speech detected")
             self.status_label.setStyleSheet("color: #ff9800;")
@@ -879,6 +897,13 @@ class MainWindow(QMainWindow):
         
         except Exception as e:
             print(f"Error handling status: {e}")
+
+    def _on_language_detected(self, language, probability):
+        """Show the language chosen by automatic recognition."""
+        names = {'ru': 'Russian', 'en': 'English', 'auto': 'Russian / English'}
+        self.detail_label.setText(
+            f"Detected: {names.get(language, language)} ({probability:.0%})"
+        )
     
     def _on_error(self, error_msg):
         """Handle errors"""
