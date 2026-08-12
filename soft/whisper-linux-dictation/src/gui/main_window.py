@@ -1105,6 +1105,9 @@ class WaylandHotkeyListener(GlobalHotkeyListener):
                     for event in events:
                         if event.type == ecodes.EV_KEY and event.value != 2:
                             self._handle_evdev_key(event.code, event.value)
+        except Exception:
+            logger.exception('Wayland hotkey input loop stopped unexpectedly')
+            self.error_occurred.emit('The global hotkey listener stopped unexpectedly.')
         finally:
             selector.close()
 
@@ -1121,6 +1124,11 @@ class WaylandHotkeyListener(GlobalHotkeyListener):
 
         if code != self._target_code:
             return
+        logger.info(
+            'Wayland hotkey event: %s %s',
+            display_trigger_key(self.key_name),
+            'pressed' if pressed else 'released',
+        )
         if self.is_hold_to_talk:
             if pressed and not self._mouse_pressed:
                 self._mouse_pressed = True
@@ -1752,6 +1760,10 @@ class MainWindow(QMainWindow):
     
     def _toggle_dictation(self):
         """Toggle dictation on/off"""
+        logger.info(
+            'Dictation hotkey action received; current state=%s',
+            'recording' if self.is_listening else 'idle',
+        )
         if not self.is_listening:
             self._start_dictation()
         else:
