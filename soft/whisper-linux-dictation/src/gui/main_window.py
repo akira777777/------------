@@ -40,6 +40,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -129,6 +130,12 @@ QLabel#metricValue {
     font-size: 14px;
     font-weight: 700;
 }
+QLabel#latestTranscript {
+    color: #17243A;
+    font-size: 15px;
+    font-weight: 550;
+}
+QLabel#latestTranscript[empty="true"] { color: #65728A; font-size: 13px; font-weight: 400; }
 QFrame#statusDot {
     background: #25A37C;
     border-radius: 5px;
@@ -236,9 +243,6 @@ QGroupBox#settingsSection::title {
     color: #25334A;
 }
 QCheckBox { spacing: 9px; padding: 3px 0; }
-QCheckBox::indicator { width: 18px; height: 18px; }
-QCheckBox::indicator:unchecked { background: #FFFFFF; border: 1px solid #BFCADA; border-radius: 5px; }
-QCheckBox::indicator:checked { background: #2D63F3; border: 1px solid #2D63F3; border-radius: 5px; }
 QScrollBar:vertical {
     background: transparent;
     width: 10px;
@@ -247,6 +251,8 @@ QScrollBar:vertical {
 QScrollBar::handle:vertical { background: #C7D1DE; border-radius: 4px; min-height: 32px; }
 QScrollBar::handle:vertical:hover { background: #9FADBF; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollArea { background: transparent; border: none; }
+QScrollArea > QWidget > QWidget { background: transparent; }
 QToolTip { color: #FFFFFF; background: #25334A; border: 0; padding: 6px; }
 """
 
@@ -504,7 +510,7 @@ class SettingsDialog(QDialog):
         
         self.setWindowTitle("Settings — Whisper Linux Dictation")
         self.setMinimumSize(600, 620)
-        self.resize(640, 680)
+        self.resize(640, 740)
         self.setStyleSheet(APP_STYLESHEET)
         
         # Load settings
@@ -525,6 +531,14 @@ class SettingsDialog(QDialog):
         caption = QLabel('Tune recognition and choose what happens after each dictation.')
         caption.setObjectName('sectionCaption')
         main_layout.addWidget(caption)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 8, 6)
+        scroll_layout.setSpacing(16)
         
         # Model selection group
         model_group = QGroupBox("Recognition")
@@ -578,32 +592,39 @@ class SettingsDialog(QDialog):
         # Additional options group
         opts_group = QGroupBox("After dictation")
         opts_group.setObjectName('settingsSection')
+        opts_group.setMinimumHeight(180)
         opts_layout = QVBoxLayout(opts_group)
         opts_layout.setContentsMargins(18, 22, 18, 18)
         opts_layout.setSpacing(10)
         
         self.auto_copy_check = QCheckBox("Keep the result on the clipboard")
+        self.auto_copy_check.setMinimumHeight(24)
         self.auto_copy_check.setChecked(self.settings.get('auto_copy_to_clipboard', True))
         opts_layout.addWidget(self.auto_copy_check)
         
         self.inject_window_check = QCheckBox("Paste into the previously focused app")
+        self.inject_window_check.setMinimumHeight(24)
         self.inject_window_check.setChecked(self.settings.get('inject_into_focused_window', True))
         opts_layout.addWidget(self.inject_window_check)
 
         self.improve_text_check = QCheckBox("Polish capitalization, spacing, and punctuation")
+        self.improve_text_check.setMinimumHeight(24)
         self.improve_text_check.setChecked(self.settings.get('auto_improve_text', True))
         opts_layout.addWidget(self.improve_text_check)
 
         self.remove_fillers_check = QCheckBox("Remove filler words")
+        self.remove_fillers_check.setMinimumHeight(24)
         self.remove_fillers_check.setChecked(self.settings.get('remove_filler_words', False))
         self.remove_fillers_check.setEnabled(self.improve_text_check.isChecked())
         self.improve_text_check.toggled.connect(self.remove_fillers_check.setEnabled)
         opts_layout.addWidget(self.remove_fillers_check)
         
-        main_layout.addWidget(model_group)
-        main_layout.addWidget(key_group)
-        main_layout.addWidget(opts_group)
-        main_layout.addStretch(1)
+        scroll_layout.addWidget(model_group)
+        scroll_layout.addWidget(key_group)
+        scroll_layout.addWidget(opts_group)
+        scroll_layout.addStretch(1)
+        scroll.setWidget(scroll_content)
+        main_layout.addWidget(scroll, 1)
         
         # Buttons
         button_layout = QHBoxLayout()
@@ -805,6 +826,7 @@ class MainWindow(QMainWindow):
         self.minimize_to_tray = False
         self._hold_to_talk_active = False
         self._animations = []
+        self._progress_animation = None
         self._toast_generation = 0
         
         # Timer for status updates
@@ -1021,7 +1043,8 @@ class MainWindow(QMainWindow):
         latest_head.addWidget(open_history)
         latest_layout.addLayout(latest_head)
         self.latest_text = QLabel('Your next transcription will appear here.')
-        self.latest_text.setObjectName('sectionCaption')
+        self.latest_text.setObjectName('latestTranscript')
+        self.latest_text.setProperty('empty', True)
         self.latest_text.setWordWrap(True)
         self.latest_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.latest_text.setMinimumHeight(34)
@@ -1133,6 +1156,22 @@ class MainWindow(QMainWindow):
                 self._animations.remove(animation)
 
         animation.finished.connect(cleanup)
+        animation.start()
+
+    def _set_progress(self, value, animated=True):
+        """Ease meaningful progress changes without running a busy animation."""
+        target = max(0, min(int(value), 100))
+        if not animated or not self.isVisible():
+            self.progress_bar.setValue(target)
+            return
+        if self._progress_animation is not None:
+            self._progress_animation.stop()
+        animation = QPropertyAnimation(self.progress_bar, b'value', self)
+        animation.setDuration(220)
+        animation.setStartValue(self.progress_bar.value())
+        animation.setEndValue(target)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._progress_animation = animation
         animation.start()
 
     def _animate_tab_change(self, index):
@@ -1339,7 +1378,7 @@ class MainWindow(QMainWindow):
                 'recording', 'Listening…',
                 'Speak naturally. Release your mouse button or finish when you are done.',
             )
-            self.progress_bar.setValue(0)
+            self._set_progress(0)
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to start dictation:\n{e}")
@@ -1372,7 +1411,7 @@ class MainWindow(QMainWindow):
         self.is_listening = False
         self._hold_to_talk_active = False
         self._set_ui_state('muted', 'Recording cancelled', 'The audio was discarded.')
-        self.progress_bar.setValue(0)
+        self._set_progress(0)
         self.recording_indicator.show_cancelled()
 
     def _on_recording_finished(self, audio_data):
@@ -1391,7 +1430,7 @@ class MainWindow(QMainWindow):
                 'processing', 'Turning speech into text',
                 'Whisper is recognizing your recording locally.',
             )
-            self.progress_bar.setValue(40)
+            self._set_progress(40)
 
             language = normalize_language(self.settings.get('language', 'auto'))
             worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
@@ -1410,7 +1449,7 @@ class MainWindow(QMainWindow):
 
     def _on_transcription_completed(self, text):
         """Handle completed transcription text"""
-        self.progress_bar.setValue(100)
+        self._set_progress(100)
         cleaned = text.strip()
         if cleaned and self.settings.get('auto_improve_text', True):
             configured_language = normalize_language(self.settings.get('language', 'auto'))
@@ -1494,12 +1533,10 @@ class MainWindow(QMainWindow):
                     self._save_history_file()
 
                 self.latest_text.setText(cleaned)
+                self.latest_text.setProperty('empty', False)
+                self.latest_text.style().unpolish(self.latest_text)
+                self.latest_text.style().polish(self.latest_text)
                 self._fade_widget(self.latest_text, duration=220)
-                
-                # Update progress bar (simulate)
-                current = self.progress_bar.value()
-                if current < 100:
-                    self.progress_bar.setValue(min(current + 5, 100))
                 
         except Exception as e:
             print(f"Error handling transcription: {e}")
@@ -1520,6 +1557,13 @@ class MainWindow(QMainWindow):
                     content = f.read()
                     self.history_edit.setPlainText(content)
                     self._update_history_stats()
+                    entries = [line.strip() for line in content.splitlines() if line.strip()]
+                    if entries:
+                        latest = entries[-1].split('] ', 1)[-1]
+                        self.latest_text.setText(latest)
+                        self.latest_text.setProperty('empty', False)
+                        self.latest_text.style().unpolish(self.latest_text)
+                        self.latest_text.style().polish(self.latest_text)
         except Exception as e:
             print(f"Error loading history file: {e}")
 
@@ -1609,7 +1653,7 @@ class MainWindow(QMainWindow):
     def _on_progress(self, progress, message):
         """Handle progress updates"""
         try:
-            self.progress_bar.setValue(int(progress))
+            self._set_progress(progress)
             self.detail_label.setText(message)
         
         except Exception as e:
