@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=qBittorrent
+Comment=An open-source BitTorrent client
+Exec=/home/akira/.local/bin/qbittorrent %U
+Icon=/home/akira/.local/share/icons/qbittorrent.svg
+Terminal=false
+Categories=Network;FileTransfer;P2P;

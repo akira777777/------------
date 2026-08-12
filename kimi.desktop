@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Kimi
+Comment=Kimi AI Desktop Application
+Exec=/home/akira/.local/bin/kimi %U
+Icon=/home/akira/.local/share/icons/kimi.png
+Terminal=false
+Categories=Utility;Network;

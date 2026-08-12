@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Tor Browser
+GenericName=Web Browser
+Comment=Tor Browser privacy focused browser
+Exec=/home/akira/Загрузки/tor-browser/Browser/start-tor-browser %u
+Icon=/home/akira/Загрузки/tor-browser/Browser/browser/chrome/icons/default/default128.png
+Terminal=false
+StartupNotify=true
+StartupWMClass=Tor Browser
+Categories=Network;WebBrowser;
