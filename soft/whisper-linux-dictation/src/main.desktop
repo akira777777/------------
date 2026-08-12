@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Whisper Linux Dictation
+Comment=Real-time speech-to-text using OpenAI Whisper model
+Exec=/usr/bin/whisper-linux-dictation
+Icon=whisper-dictation
+Terminal=false
+Type=Application
+Categories=AudioVideo;Multimedia;Utility;
+Keywords=speech;text;dictation;transcribe;voice;whisper;

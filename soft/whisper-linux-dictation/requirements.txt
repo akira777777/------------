@@ -1,0 +1,43 @@
+# Whisper Linux Dictation - Core Dependencies
+
+# Core Whisper Engine (Optimized for 2x speedup)
+faster-whisper>=1.0.0
+
+# Audio Input/Output
+sounddevice>=0.4.6
+numpy>=1.24.0
+
+# GUI Framework
+PyQt6>=6.5.0
+
+# Voice Activity Detection
+silero-vad>=5.0.0
+
+# Text Injection into Applications
+pyautogui>=0.9.54
+
+# System Audio (PulseAudio/PipeWire)
+pulseaudio-utils>=14.2
+pipewire>=0.3.60
+
+# Configuration Management
+python-dotenv>=1.0.0
+configparser>=6.0.0
+
+# Threading & Concurrency
+threading>=3.0.0
+queue>=2.4.0
+
+# Logging
+logging>=0.0.0
+
+# Optional: GPU Acceleration (uncomment if using CUDA)
+# torch>=2.1.0
+# torchvision>=0.16.0
+# torchaudio>=2.1.0
+
+# Optional: Better performance with ONNX Runtime
+# onnxruntime-gpu>=1.16.0
+
+# Optional: X11/Wayland window management
+# pywayland>=0.4.0
