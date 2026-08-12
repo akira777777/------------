@@ -32,9 +32,9 @@ class WhisperEngine(QObject):
         self.current_audio = np.array([])
         
         # Model configuration from settings
-        self.model_size = 'small'  # tiny, small, base, large
+        self.model_size = 'tiny'  # tiny, small, base, large
         self.language = 'en'
-        self.use_cuda = True
+        self.use_cuda = False
         
         # Thread for background processing
         self.processing_thread = None
@@ -57,11 +57,11 @@ class WhisperEngine(QObject):
             self.model = WhisperModel(
                 model_size_or_path=model_size,
                 device=device,
-                compute_type='float16',  # Faster than float32
+                compute_type='float32',  # float32 is more stable on CPU
                 cpu_threads=4,
                 num_workers=1  # Single worker for real-time processing
             )
-            
+                        
             self.is_loaded = True
             self.status_changed.emit(f"Model loaded: {model_size} on {device}")
             logger.info(f"Whisper model '{model_size}' loaded successfully")
