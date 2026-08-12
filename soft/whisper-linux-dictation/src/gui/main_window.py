@@ -10,16 +10,27 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QDateTime, QObject, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QCursor, QFont, QIcon, QPainter
+from PyQt6.QtCore import (
+    QDateTime,
+    QEasingCurve,
+    QObject,
+    QPropertyAnimation,
+    Qt,
+    QThread,
+    QTimer,
+    pyqtSignal,
+)
+from PyQt6.QtGui import QColor, QCursor, QFont, QPainter
 from PyQt6.QtWidgets import (
     QApplication,
+    QBoxLayout,
     QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
     QFormLayout,
     QFrame,
+    QGraphicsOpacityEffect,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -79,11 +90,16 @@ QGroupBox#settingsSection {
     border: 1px solid #DCE3EC;
     border-radius: 16px;
 }
+QFrame#heroCard[state="recording"] { border-color: #F3B4B5; background: #FFFDFD; }
+QFrame#heroCard[state="processing"] { border-color: #BFD0FF; }
+QFrame#heroCard[state="error"] { border-color: #E8B7BE; }
 QFrame#signalPanel {
     background: #EAF0FF;
     border: 1px solid #D7E1FF;
     border-radius: 14px;
 }
+QFrame#signalPanel[state="recording"] { background: #FFF1F1; border-color: #F4C4C4; }
+QFrame#signalPanel[state="processing"] { background: #EEF3FF; border-color: #CBD8FF; }
 QLabel#eyebrow {
     color: #2D63F3;
     font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace;
@@ -119,6 +135,8 @@ QLabel#signalState {
     font-size: 11px;
     font-weight: 700;
 }
+QLabel#signalState[state="recording"] { color: #D74349; }
+QLabel#signalState[state="ready"] { color: #257B65; }
 QLabel#shortcutKey {
     color: #334057;
     background: #EDF1F6;
@@ -153,6 +171,7 @@ QPushButton#primaryButton {
 QPushButton#primaryButton:hover { background: #2456D8; border-color: #2456D8; }
 QPushButton#primaryButton[recording="true"] { background: #F05D5E; border-color: #F05D5E; }
 QPushButton#dangerButton { color: #B63B4A; }
+QPushButton#dangerButton:hover { color: #922D39; background: #FFF1F2; border-color: #F1C4CA; }
 QTabWidget::pane { border: 0; background: transparent; top: -1px; }
 QTabBar::tab {
     color: #68758B;
@@ -185,6 +204,15 @@ QLineEdit, QComboBox, QPlainTextEdit {
 QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus { border: 2px solid #7399FF; }
 QComboBox { min-height: 25px; }
 QComboBox::drop-down { border: 0; width: 28px; }
+QComboBox QAbstractItemView {
+    background: #FFFFFF;
+    color: #17243A;
+    border: 1px solid #CCD6E3;
+    border-radius: 8px;
+    padding: 6px;
+    selection-background-color: #E8EFFF;
+    selection-color: #173C9E;
+}
 QPlainTextEdit { font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace; }
 QGroupBox#settingsSection {
     margin-top: 12px;
@@ -202,6 +230,14 @@ QCheckBox { spacing: 9px; padding: 3px 0; }
 QCheckBox::indicator { width: 18px; height: 18px; }
 QCheckBox::indicator:unchecked { background: #FFFFFF; border: 1px solid #BFCADA; border-radius: 5px; }
 QCheckBox::indicator:checked { background: #2D63F3; border: 1px solid #2D63F3; border-radius: 5px; }
+QScrollBar:vertical {
+    background: transparent;
+    width: 10px;
+    margin: 2px;
+}
+QScrollBar::handle:vertical { background: #C7D1DE; border-radius: 4px; min-height: 32px; }
+QScrollBar::handle:vertical:hover { background: #9FADBF; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QToolTip { color: #FFFFFF; background: #25334A; border: 0; padding: 6px; }
 """
 
@@ -212,18 +248,33 @@ class WaveformWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._level = 0.08
+        self._target_level = 0.08
         self._active = False
         self.setMinimumSize(210, 76)
         self.setAccessibleName('Microphone input level')
+        self._motion_timer = QTimer(self)
+        self._motion_timer.setInterval(33)
+        self._motion_timer.timeout.connect(self._animate_level)
 
     def set_level(self, level):
-        self._level = max(0.03, min(float(level), 1.0))
-        self.update()
+        self._target_level = max(0.03, min(float(level), 1.0))
+        if self._active and not self._motion_timer.isActive():
+            self._motion_timer.start()
 
     def set_active(self, active):
         self._active = bool(active)
-        if not active:
+        if active:
+            self._motion_timer.start()
+        else:
+            self._motion_timer.stop()
             self._level = 0.08
+            self._target_level = 0.08
+        self.update()
+
+    def _animate_level(self):
+        self._level += (self._target_level - self._level) * 0.24
+        if abs(self._target_level - self._level) < 0.005:
+            self._level = self._target_level
         self.update()
 
     def paintEvent(self, event):
@@ -370,8 +421,10 @@ class RecordingIndicator(QWidget):
         self._elapsed_seconds = 0
         self.timer_label.setText('00:00')
         self.state_label.setText('Запись идёт')
-        action = 'отпустите для вставки' if hold_to_talk else 'нажмите для стопа'
-        self.hint_label.setText(f'{trigger_key}: {action}  ·  Esc — отмена')
+        if hold_to_talk:
+            self.hint_label.setText(f'Отпустите {trigger_key} → вставить')
+        else:
+            self.hint_label.setText(f'{trigger_key}: нажмите для стопа')
         self._apply_state('recording')
         self.elapsed_timer.start(1000)
         self._position_on_active_screen()
@@ -742,6 +795,7 @@ class MainWindow(QMainWindow):
         self._shutting_down = False
         self.minimize_to_tray = False
         self._hold_to_talk_active = False
+        self._animations = []
         
         # Timer for status updates
         self.status_timer = QTimer()
@@ -775,6 +829,21 @@ class MainWindow(QMainWindow):
             self.hide()
             event.ignore()
 
+    def resizeEvent(self, event):
+        """Adapt the hero and page gutters for narrower desktop windows."""
+        super().resizeEvent(event)
+        if not hasattr(self, 'hero_layout'):
+            return
+        compact = self.width() < 760
+        self.hero_layout.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact
+            else QBoxLayout.Direction.LeftToRight
+        )
+        gutter = 18 if compact else 30
+        self.main_layout.setContentsMargins(gutter, 20, gutter, 22)
+        self.signal_panel.setMinimumHeight(116 if compact else 0)
+
     def shutdown(self):
         """Release audio and background resources before application exit."""
         self._shutting_down = True
@@ -789,173 +858,297 @@ class MainWindow(QMainWindow):
         self.recording_indicator.close()
     
     def _create_ui(self):
-        """Create main window UI with Tabs and Notepad/History panel"""
+        """Create a focused dictation dashboard and editable history."""
         self.setWindowTitle("Whisper Linux Dictation")
-        self.setMinimumSize(700, 550)
-        self.setWindowIcon(QIcon())  # Will be replaced with actual icon
-        
-        # Central widget
+        self.setMinimumSize(680, 600)
+        self.resize(920, 700)
+        self.setStyleSheet(APP_STYLESHEET)
+
         central = QWidget()
+        central.setObjectName('appRoot')
         self.setCentralWidget(central)
-        
         main_layout = QVBoxLayout(central)
-        
-        # Main Tab Widget
+        self.main_layout = main_layout
+        main_layout.setContentsMargins(30, 24, 30, 24)
+        main_layout.setSpacing(18)
+
+        header = QHBoxLayout()
+        header.setSpacing(12)
+        brand_mark = QLabel('W')
+        brand_mark.setObjectName('brandMark')
+        brand_mark.setFixedSize(40, 40)
+        brand_mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header.addWidget(brand_mark)
+        brand_text = QVBoxLayout()
+        brand_text.setSpacing(0)
+        brand_name = QLabel('Whisper Dictation')
+        brand_name.setObjectName('brandName')
+        brand_caption = QLabel('LOCAL VOICE WORKSPACE')
+        brand_caption.setObjectName('brandCaption')
+        brand_text.addWidget(brand_name)
+        brand_text.addWidget(brand_caption)
+        header.addLayout(brand_text)
+        header.addStretch(1)
+        privacy_badge = QLabel('Local processing')
+        privacy_badge.setObjectName('privacyBadge')
+        privacy_badge.setToolTip('Audio is processed on this computer.')
+        header.addWidget(privacy_badge)
+        self.settings_btn = QPushButton('Settings')
+        self.settings_btn.setToolTip('Recognition, shortcut, and output settings')
+        self.settings_btn.clicked.connect(self._open_settings)
+        header.addWidget(self.settings_btn)
+        main_layout.addLayout(header)
+
         self.tabs = QTabWidget()
-        
-        # Tab 1: Dictation Control
+        self.tabs.setDocumentMode(True)
+
         dictation_tab = QWidget()
         dictation_layout = QVBoxLayout(dictation_tab)
-        
-        # Title section
-        title_group = QGroupBox("Whisper Linux Dictation")
-        title_layout = QHBoxLayout(title_group)
-        
-        self.status_label = QLabel("Ready - Hold Mouse 5 to dictate")
-        self.status_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_layout.addWidget(self.status_label)
-        
-        # Status indicator (color circle)
+        dictation_layout.setContentsMargins(0, 18, 0, 0)
+        dictation_layout.setSpacing(14)
+
+        hero = QFrame()
+        self.hero_card = hero
+        hero.setObjectName('heroCard')
+        hero_layout = QHBoxLayout(hero)
+        self.hero_layout = hero_layout
+        hero_layout.setContentsMargins(26, 24, 24, 24)
+        hero_layout.setSpacing(28)
+
+        status_column = QVBoxLayout()
+        status_column.setSpacing(8)
+        eyebrow_row = QHBoxLayout()
+        eyebrow_row.setSpacing(8)
         self.indicator_frame = QFrame()
-        self.indicator_frame.setFixedSize(20, 20)
-        self.indicator_frame.setStyleSheet("""
-            QFrame {
-                border-radius: 10px;
-                background-color: #4CAF50;
-            }
-        """)
-        title_layout.addWidget(self.indicator_frame)
-        dictation_layout.addWidget(title_group)
-        
-        # Controls section
-        controls_group = QGroupBox("Controls")
-        controls_layout = QHBoxLayout(controls_group)
-        
-        self.start_btn = QPushButton("Start Dictation")
-        self.start_btn.setFixedSize(160, 40)
-        self.start_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-        """)
+        self.indicator_frame.setObjectName('statusDot')
+        self.indicator_frame.setProperty('state', 'ready')
+        self.indicator_frame.setFixedSize(10, 10)
+        eyebrow_row.addWidget(self.indicator_frame)
+        eyebrow = QLabel('MICROPHONE READY')
+        eyebrow.setObjectName('eyebrow')
+        self.state_eyebrow = eyebrow
+        eyebrow_row.addWidget(eyebrow)
+        eyebrow_row.addStretch(1)
+        status_column.addLayout(eyebrow_row)
+
+        self.status_label = QLabel('Ready when you are')
+        self.status_label.setObjectName('statusTitle')
+        self.status_label.setWordWrap(True)
+        status_column.addWidget(self.status_label)
+        self.detail_label = QLabel('Hold your shortcut, speak naturally, then release to insert text.')
+        self.detail_label.setObjectName('sectionCaption')
+        self.detail_label.setWordWrap(True)
+        status_column.addWidget(self.detail_label)
+        status_column.addStretch(1)
+
+        key_row = QHBoxLayout()
+        key_row.setSpacing(9)
+        self.shortcut_label = QLabel(self.settings.get('trigger_key', 'Mouse5'))
+        self.shortcut_label.setObjectName('shortcutKey')
+        key_row.addWidget(self.shortcut_label)
+        self.shortcut_hint = QLabel('hold to talk')
+        self.shortcut_hint.setObjectName('mutedLabel')
+        key_row.addWidget(self.shortcut_hint)
+        key_row.addStretch(1)
+        status_column.addLayout(key_row)
+        hero_layout.addLayout(status_column, 3)
+
+        signal_panel = QFrame()
+        self.signal_panel = signal_panel
+        signal_panel.setObjectName('signalPanel')
+        signal_layout = QVBoxLayout(signal_panel)
+        signal_layout.setContentsMargins(18, 14, 18, 12)
+        signal_layout.setSpacing(2)
+        signal_head = QHBoxLayout()
+        signal_title = QLabel('INPUT SIGNAL')
+        signal_title.setObjectName('eyebrow')
+        signal_head.addWidget(signal_title)
+        signal_head.addStretch(1)
+        self.signal_state_label = QLabel('STANDBY')
+        self.signal_state_label.setObjectName('signalState')
+        signal_head.addWidget(self.signal_state_label)
+        signal_layout.addLayout(signal_head)
+        self.waveform = WaveformWidget()
+        signal_layout.addWidget(self.waveform, 1)
+        hero_layout.addWidget(signal_panel, 2)
+        dictation_layout.addWidget(hero)
+
+        controls = QHBoxLayout()
+        controls.setSpacing(10)
+        self.start_btn = QPushButton('Start dictation')
+        self.start_btn.setObjectName('primaryButton')
+        self.start_btn.setAccessibleName('Start or stop dictation')
         self.start_btn.clicked.connect(self._toggle_dictation)
-        controls_layout.addWidget(self.start_btn)
-        
-        self.stop_btn = QPushButton("Stop (Esc)")
-        self.stop_btn.setFixedSize(150, 40)
-        self.stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f44336;
-                color: white;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #da190b;
-            }
-        """)
-        self.stop_btn.clicked.connect(self._stop_dictation)
-        controls_layout.addWidget(self.stop_btn)
-        dictation_layout.addWidget(controls_group)
-        
-        # Settings section
-        settings_group = QGroupBox("Settings")
-        settings_layout = QHBoxLayout(settings_group)
-        
-        self.settings_btn = QPushButton("Open Settings")
-        self.settings_btn.setFixedSize(150, 30)
-        self.settings_btn.clicked.connect(self._open_settings)
-        settings_layout.addWidget(self.settings_btn)
-        dictation_layout.addWidget(settings_group)
-        
-        # Progress section
-        progress_group = QGroupBox("Processing Status")
-        progress_layout = QVBoxLayout(progress_group)
-        
+        controls.addWidget(self.start_btn, 1)
+        self.stop_btn = QPushButton('Cancel recording')
+        self.stop_btn.setObjectName('dangerButton')
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self._cancel_dictation)
+        controls.addWidget(self.stop_btn)
+        dictation_layout.addLayout(controls)
+
+        metrics = QHBoxLayout()
+        self.metrics_layout = metrics
+        metrics.setSpacing(10)
+        self.model_value = self._add_metric(metrics, 'MODEL', '')
+        self.language_value = self._add_metric(metrics, 'LANGUAGE', '')
+        self.hotkey_value = self._add_metric(metrics, 'SHORTCUT', '')
+        dictation_layout.addLayout(metrics)
+
+        latest_card = QFrame()
+        latest_card.setObjectName('contentCard')
+        latest_layout = QVBoxLayout(latest_card)
+        latest_layout.setContentsMargins(20, 17, 20, 18)
+        latest_layout.setSpacing(10)
+        latest_head = QHBoxLayout()
+        latest_title = QLabel('Latest transcript')
+        latest_title.setObjectName('sectionTitle')
+        latest_head.addWidget(latest_title)
+        latest_head.addStretch(1)
+        open_history = QPushButton('Open history')
+        open_history.clicked.connect(lambda: self.tabs.setCurrentIndex(1))
+        latest_head.addWidget(open_history)
+        latest_layout.addLayout(latest_head)
+        self.latest_text = QLabel('Your next transcription will appear here.')
+        self.latest_text.setObjectName('sectionCaption')
+        self.latest_text.setWordWrap(True)
+        self.latest_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.latest_text.setMinimumHeight(34)
+        latest_layout.addWidget(self.latest_text)
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("%p% - %v")
-        progress_layout.addWidget(self.progress_bar)
-        
-        self.detail_label = QLabel("")
-        self.detail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        progress_layout.addWidget(self.detail_label)
-        dictation_layout.addWidget(progress_group)
-        
-        # Keyboard shortcuts info
-        shortcuts_group = QGroupBox("Keyboard Shortcuts")
-        shortcuts_layout = QVBoxLayout(shortcuts_group)
-        
-        shortcuts_text = """
-        <b>Dictation:</b><br>
-        • Hold Mouse 5 and speak; release it to insert text<br>
-        • The on-screen button uses click-to-start / click-to-stop<br>
-        • Press Esc to cancel<br><br>
-        <b>Notepad & History:</b><br>
-        • Switch to the "Notepad & History" tab to view all transcribed entries<br>
-        • Copy, edit, or save your dictations to a text file"""
-        
-        shortcuts_label = QLabel(shortcuts_text)
-        shortcuts_label.setWordWrap(True)
-        shortcuts_layout.addWidget(shortcuts_label)
-        dictation_layout.addWidget(shortcuts_group)
-        
-        # Tab 2: Notepad & History
+        self.progress_bar.setTextVisible(False)
+        latest_layout.addWidget(self.progress_bar)
+        dictation_layout.addWidget(latest_card)
+        dictation_layout.addStretch(1)
+
         history_tab = QWidget()
         history_layout = QVBoxLayout(history_tab)
-        
-        # Action Toolbar
+        history_layout.setContentsMargins(0, 18, 0, 0)
+        history_layout.setSpacing(14)
+        history_header = QHBoxLayout()
+        history_copy = QVBoxLayout()
+        history_title = QLabel('Dictation history')
+        history_title.setObjectName('statusTitle')
+        history_caption = QLabel('Edit, search, copy, or export your locally stored transcripts.')
+        history_caption.setObjectName('sectionCaption')
+        history_copy.addWidget(history_title)
+        history_copy.addWidget(history_caption)
+        history_header.addLayout(history_copy)
+        history_header.addStretch(1)
+        history_layout.addLayout(history_header)
+
         toolbar_layout = QHBoxLayout()
-        
+        toolbar_layout.setSpacing(8)
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Search history...")
+        self.search_input.setPlaceholderText('Search transcripts')
+        self.search_input.setClearButtonEnabled(True)
         self.search_input.textChanged.connect(self._filter_history)
-        toolbar_layout.addWidget(self.search_input)
-        
-        self.copy_btn = QPushButton("📋 Copy All")
+        toolbar_layout.addWidget(self.search_input, 1)
+        self.copy_btn = QPushButton('Copy all')
         self.copy_btn.clicked.connect(self._copy_history_to_clipboard)
         toolbar_layout.addWidget(self.copy_btn)
-        
-        self.export_btn = QPushButton("💾 Export .txt")
+        self.export_btn = QPushButton('Export text')
         self.export_btn.clicked.connect(self._export_history_to_file)
         toolbar_layout.addWidget(self.export_btn)
-        
-        self.clear_btn = QPushButton("🧹 Clear")
+        self.clear_btn = QPushButton('Clear')
+        self.clear_btn.setObjectName('dangerButton')
         self.clear_btn.clicked.connect(self._clear_history)
         toolbar_layout.addWidget(self.clear_btn)
-        
         history_layout.addLayout(toolbar_layout)
-        
-        # Notepad Text Area
+
         self.history_edit = QPlainTextEdit()
-        self.history_edit.setPlaceholderText("Transcribed dictation history will automatically appear here...")
-        self.history_edit.setFont(QFont("Monospace", 10))
+        self.history_edit.setPlaceholderText('No dictations yet. Start recording from the Dictation tab.')
+        self.history_edit.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.history_edit.textChanged.connect(self._on_history_text_changed)
-        history_layout.addWidget(self.history_edit)
-        
-        # History Stats Footer
-        self.history_stats_label = QLabel("Entries: 0 | Words: 0 | Characters: 0")
-        self.history_stats_label.setStyleSheet("color: #888888; font-size: 11px;")
+        history_layout.addWidget(self.history_edit, 1)
+        self.history_stats_label = QLabel('0 entries  ·  0 words  ·  0 characters')
+        self.history_stats_label.setObjectName('historyStats')
         history_layout.addWidget(self.history_stats_label)
-        
-        # Add tabs
-        self.tabs.addTab(dictation_tab, "🎙️ Dictation")
-        self.tabs.addTab(history_tab, "📝 Notepad & History")
-        
-        main_layout.addWidget(self.tabs)
-        
-        # Load persistent history file
+
+        self.tabs.addTab(dictation_tab, 'Dictation')
+        self.tabs.addTab(history_tab, 'History')
+        self.tabs.currentChanged.connect(self._animate_tab_change)
+        main_layout.addWidget(self.tabs, 1)
+
+        self._refresh_quick_settings()
         self._load_history_file()
+
+    def _animate_tab_change(self, index):
+        """Use one restrained fade when navigating between workspaces."""
+        self._fade_widget(self.tabs.widget(index), duration=170)
+
+    def _fade_widget(self, widget, duration=200):
+        if widget is None or not widget.isVisible():
+            return
+        effect = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(effect)
+        animation = QPropertyAnimation(effect, b'opacity', self)
+        animation.setDuration(duration)
+        animation.setStartValue(0.25)
+        animation.setEndValue(1.0)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._animations.append(animation)
+
+        def finish():
+            widget.setGraphicsEffect(None)
+            if animation in self._animations:
+                self._animations.remove(animation)
+
+        animation.finished.connect(finish)
+        animation.start()
+
+    def _add_metric(self, layout, label, value):
+        card = QFrame()
+        card.setObjectName('metricCard')
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(15, 12, 15, 12)
+        card_layout.setSpacing(3)
+        label_widget = QLabel(label)
+        label_widget.setObjectName('metricLabel')
+        value_widget = QLabel(value)
+        value_widget.setObjectName('metricValue')
+        card_layout.addWidget(label_widget)
+        card_layout.addWidget(value_widget)
+        layout.addWidget(card, 1)
+        return value_widget
+
+    def _refresh_quick_settings(self):
+        model = self.settings.get('model', 'small')
+        language = normalize_language(self.settings.get('language', 'auto'))
+        trigger_key = self.settings.get('trigger_key', 'Mouse5')
+        language_names = {'auto': 'Russian + English', 'ru': 'Russian', 'en': 'English'}
+        self.model_value.setText(model.capitalize())
+        self.language_value.setText(language_names.get(language, language))
+        self.hotkey_value.setText(trigger_key)
+        self.shortcut_label.setText(trigger_key)
+        hold_to_talk = trigger_key.strip().lower().replace(' ', '') in {'mouse4', 'mouse5', 'x1', 'x2'}
+        self.shortcut_hint.setText('hold to talk' if hold_to_talk else 'press to start or stop')
+
+    def _set_ui_state(self, state, title, detail=None):
+        labels = {
+            'ready': ('MICROPHONE READY', 'STANDBY'),
+            'recording': ('RECORDING', 'LIVE'),
+            'processing': ('TRANSCRIBING', 'PROCESSING'),
+            'error': ('ATTENTION NEEDED', 'ERROR'),
+            'muted': ('NOT RECORDING', 'STANDBY'),
+        }
+        eyebrow, signal = labels.get(state, labels['ready'])
+        self.state_eyebrow.setText(eyebrow)
+        self.signal_state_label.setText(signal)
+        self.status_label.setText(title)
+        if detail is not None:
+            self.detail_label.setText(detail)
+        self.indicator_frame.setProperty('state', state)
+        self.indicator_frame.style().unpolish(self.indicator_frame)
+        self.indicator_frame.style().polish(self.indicator_frame)
+        is_recording = state == 'recording'
+        self.waveform.set_active(is_recording)
+        self.start_btn.setProperty('recording', is_recording)
+        self.start_btn.style().unpolish(self.start_btn)
+        self.start_btn.style().polish(self.start_btn)
+        self.start_btn.setText('Finish dictation' if is_recording else 'Start dictation')
+        self.stop_btn.setEnabled(is_recording)
     
     def _load_model(self):
         """Load Whisper model based on settings"""
@@ -966,8 +1159,11 @@ class MainWindow(QMainWindow):
             model_size = self.settings.get('model', 'small')
             language = normalize_language(self.settings.get('language', 'auto'))
 
-            self.status_label.setText(f"Loading Whisper model: {model_size}...")
-            self.detail_label.setText("The first launch may download model files")
+            self._set_ui_state(
+                'processing',
+                f'Loading the {model_size} model',
+                'The first launch may download model files. You can keep this window open.',
+            )
             worker = ModelLoadWorker(
                 self.whisper_engine,
                 model_size,
@@ -986,12 +1182,15 @@ class MainWindow(QMainWindow):
         """Update the interface after background model initialization."""
         self.model_worker = None
         if loaded:
-            self.status_label.setText("Ready - Hold Mouse 5 to dictate")
-            self.detail_label.setText("")
-            self.indicator_frame.setStyleSheet("QFrame { background-color: #4CAF50; }")
+            self._set_ui_state(
+                'ready', 'Ready when you are',
+                'Use your shortcut or the button below to begin dictating.',
+            )
         else:
-            self.status_label.setText("Whisper model failed to load")
-            self.indicator_frame.setStyleSheet("QFrame { background-color: #f44336; }")
+            self._set_ui_state(
+                'error', 'Model could not be loaded',
+                'Check the error message, then try a smaller model in Settings.',
+            )
 
         configured_model = self.settings.get('model', 'small')
         configured_language = normalize_language(self.settings.get('language', 'auto'))
@@ -1019,6 +1218,7 @@ class MainWindow(QMainWindow):
         self.audio_handler.recording_finished.connect(self._on_recording_finished)
         self.audio_handler.error_occurred.connect(self._on_error)
         self.audio_handler.volume_changed.connect(self.recording_indicator.update_volume)
+        self.audio_handler.volume_changed.connect(self.waveform.set_level)
     
     def _toggle_dictation(self):
         """Toggle dictation on/off"""
@@ -1042,18 +1242,21 @@ class MainWindow(QMainWindow):
             if self.is_listening:
                 return
             if self.worker and self.worker.isRunning():
-                self.detail_label.setText("Please wait for transcription to finish")
+                self.detail_label.setText('Finish the current transcription before recording again.')
                 return
 
             # Start audio capture
             if not self.whisper_engine.is_loaded:
                 if not self.model_worker or not self.model_worker.isRunning():
                     self._load_model()
-                self.detail_label.setText("Please wait for the Whisper model to load")
+                self.detail_label.setText('The speech model is still loading.')
                 return
 
             if not self.audio_handler.start_recording():
-                self.detail_label.setText("Could not open the microphone")
+                self._set_ui_state(
+                    'error', 'Microphone unavailable',
+                    'Check the input device and its permissions, then try again.',
+                )
                 return
 
             self.recording_indicator.start_recording(
@@ -1064,27 +1267,11 @@ class MainWindow(QMainWindow):
             # Update UI state
             self.is_listening = True
             self._hold_to_talk_active = hold_to_talk
-            self.start_btn.setText("Stop Dictation")
-            self.start_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #f44336;
-                    color: white;
-                    font-weight: bold;
-                    border-radius: 5px;
-                }
-            """)
-            
-            self.status_label.setText("Listening... Speak now!")
-            self.status_label.setStyleSheet("color: #ff9800;")
-            
-            self.indicator_frame.setStyleSheet("""
-                QFrame {
-                    background-color: #ff9800;
-                }
-            """)
-            
+            self._set_ui_state(
+                'recording', 'Listening…',
+                'Speak naturally. Release your mouse button or finish when you are done.',
+            )
             self.progress_bar.setValue(0)
-            self.detail_label.setText("Recording audio from microphone...")
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to start dictation:\n{e}")
@@ -1101,24 +1288,10 @@ class MainWindow(QMainWindow):
             # Update UI state
             self.is_listening = False
             self._hold_to_talk_active = False
-            self.start_btn.setText("Start Dictation")
-            self.start_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    font-weight: bold;
-                    border-radius: 5px;
-                }
-            """)
-            
-            self.status_label.setText("Recognizing speech...")
-            self.status_label.setStyleSheet("color: #2196F3;")
-            
-            self.indicator_frame.setStyleSheet("""
-                QFrame {
-                    background-color: #2196F3;
-                }
-            """)
+            self._set_ui_state(
+                'processing', 'Turning speech into text',
+                'Recognition runs locally. This usually takes only a moment.',
+            )
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to stop dictation:\n{e}")
@@ -1130,12 +1303,8 @@ class MainWindow(QMainWindow):
         self.audio_handler.stop_recording(emit_audio=False)
         self.is_listening = False
         self._hold_to_talk_active = False
-        self.start_btn.setText("Start Dictation")
-        self.status_label.setText("Recording cancelled")
-        self.status_label.setStyleSheet("color: #888888;")
-        self.indicator_frame.setStyleSheet("QFrame { background-color: #888888; }")
+        self._set_ui_state('muted', 'Recording cancelled', 'The audio was discarded.')
         self.progress_bar.setValue(0)
-        self.detail_label.setText("Audio was discarded")
         self.recording_indicator.show_cancelled()
 
     def _on_recording_finished(self, audio_data):
@@ -1143,18 +1312,18 @@ class MainWindow(QMainWindow):
         try:
             self.recording_indicator.show_processing()
             if len(audio_data) < 3200:  # less than 0.2 sec
-                self.status_label.setText("Recording too short")
-                self.status_label.setStyleSheet("color: #888888;")
-                self.indicator_frame.setStyleSheet("QFrame { background-color: #888888; }")
-                self.detail_label.setText("Hold Mouse 5 longer while speaking")
+                self._set_ui_state(
+                    'muted', 'That was too short',
+                    'Hold the shortcut a little longer while speaking.',
+                )
                 self.recording_indicator.show_cancelled('Запись слишком короткая')
                 return
 
-            self.status_label.setText("Recognizing speech...")
-            self.status_label.setStyleSheet("color: #2196F3;")
-            self.indicator_frame.setStyleSheet("QFrame { background-color: #2196F3; }")
+            self._set_ui_state(
+                'processing', 'Turning speech into text',
+                'Whisper is recognizing your recording locally.',
+            )
             self.progress_bar.setValue(40)
-            self.detail_label.setText("Transcribing audio through Whisper...")
 
             language = normalize_language(self.settings.get('language', 'auto'))
             worker = TranscriptionWorker(self.whisper_engine, audio_data, language)
@@ -1189,9 +1358,10 @@ class MainWindow(QMainWindow):
             )
         if cleaned:
             self._on_transcription(cleaned)
-            self.status_label.setText("Ready - Hold Mouse 5 to dictate")
-            self.status_label.setStyleSheet("color: #4CAF50;")
-            self.indicator_frame.setStyleSheet("QFrame { background-color: #4CAF50; }")
+            self._set_ui_state(
+                'ready', 'Text ready',
+                'The transcript was saved to History and is ready to use.',
+            )
             
             should_copy = self.settings.get('auto_copy_to_clipboard', True)
             should_inject = self.settings.get('inject_into_focused_window', True)
@@ -1212,10 +1382,10 @@ class MainWindow(QMainWindow):
                         QTimer.singleShot(250, lambda value=previous_clipboard: clipboard.setText(value))
             self.recording_indicator.show_result(should_inject)
         else:
-            self.status_label.setText("No speech detected")
-            self.status_label.setStyleSheet("color: #ff9800;")
-            self.indicator_frame.setStyleSheet("QFrame { background-color: #ff9800; }")
-            self.detail_label.setText("No speech recognized in recording")
+            self._set_ui_state(
+                'muted', 'No speech detected',
+                'Try again a little closer to the microphone.',
+            )
             self.recording_indicator.show_cancelled('Речь не распознана')
     
     def _open_settings(self):
@@ -1231,7 +1401,7 @@ class MainWindow(QMainWindow):
                 self.hotkey_listener.hold_released.connect(self._stop_hold_dictation)
                 self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
                 self.hotkey_listener.start()
-                self.start_btn.setText("Start Dictation")
+                self._refresh_quick_settings()
                 # Reload model with new settings
                 self._load_model()
         
@@ -1253,15 +1423,14 @@ class MainWindow(QMainWindow):
                     self.history_edit.appendPlainText(entry)
                     self._update_history_stats()
                     self._save_history_file()
+
+                self.latest_text.setText(cleaned)
                 
                 # Update progress bar (simulate)
                 current = self.progress_bar.value()
                 if current < 100:
                     self.progress_bar.setValue(min(current + 5, 100))
                 
-                # Show in detail label
-                self.detail_label.setText(f"Transcribed: {cleaned[:50]}...")
-        
         except Exception as e:
             print(f"Error handling transcription: {e}")
 
@@ -1304,7 +1473,9 @@ class MainWindow(QMainWindow):
         chars = len(text)
         words = len(text.split()) if text else 0
         lines = len([line for line in text.splitlines() if line.strip()])
-        self.history_stats_label.setText(f"Entries: {lines} | Words: {words} | Characters: {chars}")
+        self.history_stats_label.setText(
+            f"{lines} entries  ·  {words} words  ·  {chars} characters"
+        )
 
     def _copy_history_to_clipboard(self):
         """Copy all text in notepad to system clipboard"""
@@ -1383,8 +1554,13 @@ class MainWindow(QMainWindow):
     def _on_error(self, error_msg):
         """Handle errors"""
         try:
+            self.is_listening = False
+            self._set_ui_state(
+                'error', 'Something needs attention',
+                'Review the message, check your audio setup, and try again.',
+            )
             self.recording_indicator.show_error()
-            QMessageBox.warning(self, "Warning", f"{error_msg}\n\nCheck the console for details.")
+            QMessageBox.warning(self, "Dictation error", error_msg)
         
         except Exception as e:
             print(f"Error handling error: {e}")
@@ -1394,22 +1570,7 @@ class MainWindow(QMainWindow):
         try:
             if self.is_listening and self.audio_handler.is_recording:
                 volume = self.audio_handler.get_volume_level()
-                
-                # Update indicator color based on activity
-                if volume > 0.5:
-                    self.indicator_frame.setStyleSheet("""
-                        QFrame {
-                            background-color: #ff9800;
-                        }
-                    """)
-                    self.status_label.setText("Listening... Speak now!")
-                else:
-                    self.indicator_frame.setStyleSheet("""
-                        QFrame {
-                            background-color: #4CAF50;
-                        }
-                    """)
-                    self.status_label.setText("Ready - Hold Mouse 5 to dictate")
+                self.waveform.set_level(volume)
         
         except Exception as e:
             print(f"Error in status update: {e}")
