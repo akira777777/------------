@@ -34,6 +34,7 @@ from PyQt6.QtWidgets import (
 from ..audio.input_handler import AudioInputHandler
 from ..config.settings import get_settings
 from ..engine.whisper_engine import WhisperEngine
+from ..postprocessing import improve_transcript
 
 
 class SettingsDialog(QDialog):
@@ -111,6 +112,16 @@ class SettingsDialog(QDialog):
         self.inject_window_check = QCheckBox("Inject into focused window (X11/Wayland)")
         self.inject_window_check.setChecked(self.settings.get('inject_into_focused_window', True))
         opts_layout.addWidget(self.inject_window_check)
+
+        self.improve_text_check = QCheckBox("Automatically improve recognized text")
+        self.improve_text_check.setChecked(self.settings.get('auto_improve_text', True))
+        opts_layout.addWidget(self.improve_text_check)
+
+        self.remove_fillers_check = QCheckBox("Remove filler words (optional)")
+        self.remove_fillers_check.setChecked(self.settings.get('remove_filler_words', False))
+        self.remove_fillers_check.setEnabled(self.improve_text_check.isChecked())
+        self.improve_text_check.toggled.connect(self.remove_fillers_check.setEnabled)
+        opts_layout.addWidget(self.remove_fillers_check)
         
         main_layout.addWidget(model_group)
         main_layout.addWidget(lang_group)
@@ -145,6 +156,8 @@ class SettingsDialog(QDialog):
             self.settings.set('trigger_key', trigger_key)
             self.settings.set('auto_copy_to_clipboard', self.auto_copy_check.isChecked())
             self.settings.set('inject_into_focused_window', self.inject_window_check.isChecked())
+            self.settings.set('auto_improve_text', self.improve_text_check.isChecked())
+            self.settings.set('remove_filler_words', self.remove_fillers_check.isChecked())
             
             QMessageBox.information(self, "Success", "Settings saved successfully!")
             self.accept()
@@ -675,6 +688,12 @@ class MainWindow(QMainWindow):
         """Handle completed transcription text"""
         self.progress_bar.setValue(100)
         cleaned = text.strip()
+        if cleaned and self.settings.get('auto_improve_text', True):
+            cleaned = improve_transcript(
+                cleaned,
+                language=self.settings.get('language', 'auto'),
+                remove_fillers=self.settings.get('remove_filler_words', False),
+            )
         if cleaned:
             self._on_transcription(cleaned)
             self.status_label.setText("Ready - Press F12 to start dictating")

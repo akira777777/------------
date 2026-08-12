@@ -8,6 +8,7 @@ A lightweight, privacy-focused speech-to-text application for Linux Ubuntu, simi
 - **Multiple Model Sizes**: Choose from tiny, small, base, or large models based on your needs
 - **99+ Languages Support**: Transcribe in English, Spanish, French, German, Italian, Portuguese, Russian, Chinese, Japanese, Korean, and many more
 - **100% Local Processing**: Your audio never leaves your computer (except when using cloud API)
+- **Automatic Text Improvement**: Locally cleans spacing, punctuation, capitalization, and accidental repetitions
 - **Cross-Distribution**: Works on Ubuntu, Fedora, Arch Linux, Debian, and other distributions
 - **Linux Desktop Support**: Works on X11; Wayland compositors may restrict global hotkeys or simulated paste
 
@@ -80,6 +81,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 - **Language**: Select transcription language (auto-detect available)
 - **Trigger Key**: Customize the key that activates dictation
 - **Clipboard Copy**: Automatically copy to clipboard after typing
+- **Text Improvement**: Normalize recognized text and optionally remove filler words
 - **Volume Control**: Adjust microphone input volume
 
 ## System Requirements

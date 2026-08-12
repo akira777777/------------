@@ -25,6 +25,8 @@ class SettingsManager:
             'trigger_key': 'F12',  # Key to activate dictation
             'auto_copy_to_clipboard': True,
             'inject_into_focused_window': True,
+            'auto_improve_text': True,
+            'remove_filler_words': False,
             'use_cloud_api': False,
             'cloud_api_url': 'https://api.whisper-cloud.com/v1/transcribe',
             'volume_threshold': 0.5,  # Microphone volume threshold (0-1)
