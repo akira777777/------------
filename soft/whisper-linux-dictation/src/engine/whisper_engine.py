@@ -153,11 +153,11 @@ class WhisperEngine(QObject):
                 word_timestamps=False,
                 condition_on_previous_text=False,
                 vad_filter=True,    # Use VAD to reduce noise
-                vad_parameters=dict(
-                    min_silence_duration_ms=300,  # 300ms silence
-                    threshold=0.5,
-                    max_speech_duration_s=60,
-                ),
+                vad_parameters={
+                    'min_silence_duration_ms': 300,
+                    'threshold': 0.5,
+                    'max_speech_duration_s': 60,
+                },
             )
 
             self.last_detected_language = recognition_language

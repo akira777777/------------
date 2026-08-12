@@ -9,6 +9,7 @@ import logging
 import os
 import signal
 import sys
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from PyQt6.QtCore import QTimer
@@ -19,11 +20,20 @@ from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from .config.autostart import sync_autostart
 from .gui.main_window import MainWindow
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Preserve diagnostics from background/autostart sessions as well as terminals.
+log_dir = Path.home() / '.whisper_linux_dictation'
+log_dir.mkdir(parents=True, exist_ok=True)
+log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(log_format)
+file_handler = RotatingFileHandler(
+    log_dir / 'app.log',
+    maxBytes=1_000_000,
+    backupCount=2,
+    encoding='utf-8',
 )
+file_handler.setFormatter(log_format)
+logging.basicConfig(level=logging.INFO, handlers=[stream_handler, file_handler])
 logger = logging.getLogger('main')
 
 class WhisperDictationApp:

@@ -3,7 +3,6 @@
 import sys
 from pathlib import Path
 
-
 AUTOSTART_FILENAME = "whisper-linux-dictation.desktop"
 
 

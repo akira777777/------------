@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 from PyQt6.QtCore import (
     QDateTime,
@@ -339,7 +340,7 @@ def paste_clipboard_text():
 class RecordingIndicator(QWidget):
     """Focus-safe floating status capsule for the dictation lifecycle."""
 
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         'recording': '#FF5A5F',
         'processing': '#4F8CFF',
         'ready': '#35B99A',
@@ -657,6 +658,8 @@ class SettingsDialog(QDialog):
             trigger_key = self.trigger_key_edit.text().strip()
             if not trigger_key or trigger_key.lower() in {'esc', 'escape'}:
                 raise ValueError("Choose a trigger key other than Esc")
+            if not self.auto_copy_check.isChecked() and not self.inject_window_check.isChecked():
+                raise ValueError("Enable clipboard copy or automatic paste")
 
             lang_code = self.lang_combo.currentData()
             self.settings.update({
@@ -685,6 +688,7 @@ class GlobalHotkeyListener(QObject):
     hold_started = pyqtSignal()
     hold_released = pyqtSignal()
     cancel_triggered = pyqtSignal()
+    error_occurred = pyqtSignal(str)
     
     def __init__(self, key_name='Mouse5'):
         super().__init__()
@@ -742,6 +746,7 @@ class GlobalHotkeyListener(QObject):
             self.listener.start()
         except Exception as e:
             print(f"Could not start global hotkey listener: {e}")
+            self.error_occurred.emit(f"Could not start the global keyboard listener: {e}")
 
         if self.is_hold_to_talk:
             target_button = self._configured_mouse_button()
@@ -762,6 +767,7 @@ class GlobalHotkeyListener(QObject):
                 self.mouse_listener.start()
             except Exception as e:
                 print(f"Could not start mouse hotkey listener: {e}")
+                self.error_occurred.emit(f"Could not listen for Mouse 5: {e}")
 
     def stop(self):
         if self.listener:
@@ -869,6 +875,7 @@ class MainWindow(QMainWindow):
         listener.hold_started.connect(self._start_hold_dictation)
         listener.hold_released.connect(self._stop_hold_dictation)
         listener.cancel_triggered.connect(self._cancel_dictation)
+        listener.error_occurred.connect(self._on_error)
         return listener
 
     def closeEvent(self, event):
@@ -898,6 +905,8 @@ class MainWindow(QMainWindow):
 
     def shutdown(self):
         """Release audio and background resources before application exit."""
+        if self._shutting_down:
+            return
         self._shutting_down = True
         if self.history_save_timer.isActive():
             self._save_history_file()
@@ -1275,7 +1284,7 @@ class MainWindow(QMainWindow):
         self.start_btn.style().unpolish(self.start_btn)
         self.start_btn.style().polish(self.start_btn)
         self.start_btn.setText('Finish dictation' if is_recording else 'Start dictation')
-        self.start_btn.setEnabled(state in {'ready', 'recording', 'muted'})
+        self.start_btn.setEnabled(state in {'ready', 'recording', 'muted', 'error'})
         self.stop_btn.setEnabled(is_recording)
     
     def _load_model(self):
@@ -1502,10 +1511,9 @@ class MainWindow(QMainWindow):
             should_inject = self.settings.get('inject_into_focused_window', True)
             clipboard = QApplication.clipboard()
             previous_clipboard = clipboard.text() if should_inject and not should_copy else None
-            # Injection temporarily stages text on the clipboard. If both output
-            # options are disabled, leave the user's clipboard untouched.
-            if should_copy or should_inject:
-                clipboard.setText(cleaned)
+            # Always stage the transcript. This also protects users with an old
+            # configuration where both output options were accidentally disabled.
+            clipboard.setText(cleaned)
 
             inserted = False
             if should_inject:
@@ -1621,6 +1629,11 @@ class MainWindow(QMainWindow):
     def _on_history_text_changed(self):
         """Update counts immediately and debounce persistent writes."""
         self._update_history_stats()
+        if not self.history_edit.toPlainText().strip():
+            self.latest_text.setText('Your next transcription will appear here.')
+            self.latest_text.setProperty('empty', True)
+            self.latest_text.style().unpolish(self.latest_text)
+            self.latest_text.style().polish(self.latest_text)
         self.history_save_timer.start()
 
     def _update_history_stats(self):
