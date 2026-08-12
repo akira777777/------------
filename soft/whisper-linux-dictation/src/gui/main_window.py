@@ -84,6 +84,14 @@ QLabel#privacyBadge {
     font-size: 11px;
     font-weight: 650;
 }
+QLabel#toast {
+    color: #FFFFFF;
+    background: #25334A;
+    border: 1px solid #34445E;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-weight: 650;
+}
 QFrame#heroCard, QFrame#contentCard, QFrame#metricCard,
 QGroupBox#settingsSection {
     background: #FFFFFF;
@@ -797,6 +805,7 @@ class MainWindow(QMainWindow):
         self.minimize_to_tray = False
         self._hold_to_talk_active = False
         self._animations = []
+        self._toast_generation = 0
         
         # Timer for status updates
         self.status_timer = QTimer()
@@ -844,6 +853,7 @@ class MainWindow(QMainWindow):
         gutter = 18 if compact else 30
         self.main_layout.setContentsMargins(gutter, 20, gutter, 22)
         self.signal_panel.setMinimumHeight(116 if compact else 0)
+        self._position_toast()
 
     def shutdown(self):
         """Release audio and background resources before application exit."""
@@ -1072,8 +1082,58 @@ class MainWindow(QMainWindow):
         self.tabs.currentChanged.connect(self._animate_tab_change)
         main_layout.addWidget(self.tabs, 1)
 
+        self.toast = QLabel('', central)
+        self.toast.setObjectName('toast')
+        self.toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.toast.hide()
+
         self._refresh_quick_settings()
         self._load_history_file()
+
+    def _position_toast(self):
+        if not hasattr(self, 'toast'):
+            return
+        self.toast.adjustSize()
+        self.toast.move(
+            self.centralWidget().width() - self.toast.width() - 22,
+            self.centralWidget().height() - self.toast.height() - 20,
+        )
+
+    def _show_toast(self, message):
+        """Show lightweight confirmation without interrupting the workflow."""
+        self._toast_generation += 1
+        generation = self._toast_generation
+        self.toast.setText(message)
+        self._position_toast()
+        self.toast.show()
+        self.toast.raise_()
+        self._animate_opacity(self.toast, 0.15, 1.0, 150)
+        QTimer.singleShot(1550, lambda: self._hide_toast(generation))
+
+    def _hide_toast(self, generation):
+        if generation != self._toast_generation or not self.toast.isVisible():
+            return
+        self._animate_opacity(self.toast, 1.0, 0.0, 180, self.toast.hide)
+
+    def _animate_opacity(self, widget, start, end, duration, finished=None):
+        effect = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(effect)
+        animation = QPropertyAnimation(effect, b'opacity', self)
+        animation.setDuration(duration)
+        animation.setStartValue(start)
+        animation.setEndValue(end)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._animations.append(animation)
+
+        def cleanup():
+            if finished:
+                finished()
+            widget.setGraphicsEffect(None)
+            if animation in self._animations:
+                self._animations.remove(animation)
+
+        animation.finished.connect(cleanup)
+        animation.start()
 
     def _animate_tab_change(self, index):
         """Use one restrained fade when navigating between workspaces."""
@@ -1410,6 +1470,7 @@ class MainWindow(QMainWindow):
                 self.hotkey_listener.cancel_triggered.connect(self._cancel_dictation)
                 self.hotkey_listener.start()
                 self._refresh_quick_settings()
+                self._show_toast('Settings saved')
                 # Reload model with new settings
                 self._load_model()
         
@@ -1492,9 +1553,9 @@ class MainWindow(QMainWindow):
         if text.strip():
             clipboard = QApplication.clipboard()
             clipboard.setText(text)
-            QMessageBox.information(self, "Copied", "All notes copied to clipboard!")
+            self._show_toast('History copied to clipboard')
         else:
-            QMessageBox.information(self, "Info", "Notepad is empty.")
+            self._show_toast('History is empty')
 
     def _export_history_to_file(self):
         """Export notepad content to user selected .txt file"""
@@ -1510,7 +1571,7 @@ class MainWindow(QMainWindow):
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(text)
-                QMessageBox.information(self, "Success", f"File saved successfully:\n{file_path}")
+                self._show_toast('History exported')
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Could not save file:\n{e}")
 
