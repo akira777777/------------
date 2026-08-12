@@ -16,6 +16,7 @@ from PyQt6.QtCore import (
     QDateTime,
     QEasingCurve,
     QObject,
+    QPoint,
     QPropertyAnimation,
     Qt,
     QThread,
@@ -55,6 +56,15 @@ from ..engine.whisper_engine import WhisperEngine, normalize_language
 from ..postprocessing import improve_transcript
 
 logger = logging.getLogger(__name__)
+
+NUMPAD_ENTER_NAMES = {'numpadenter', 'numpad_enter', 'kpenter', 'kp_enter'}
+NUMPAD_ENTER_X11_KEYSYM = 65421
+
+
+def display_trigger_key(key_name):
+    """Return a concise user-facing name for a configured shortcut."""
+    normalized = str(key_name).strip().lower().replace('-', '_').replace(' ', '_')
+    return 'Numpad Enter' if normalized in NUMPAD_ENTER_NAMES else str(key_name)
 
 APP_STYLESHEET = """
 QWidget {
@@ -338,7 +348,11 @@ def paste_clipboard_text():
 
 
 class RecordingIndicator(QWidget):
-    """Focus-safe floating status capsule for the dictation lifecycle."""
+    """Persistent focus-safe controller for the dictation lifecycle."""
+
+    start_stop_requested = pyqtSignal()
+    copy_requested = pyqtSignal()
+    position_changed = pyqtSignal(int, int)
 
     COLORS: ClassVar[dict[str, str]] = {
         'recording': '#FF5A5F',
@@ -358,24 +372,29 @@ class RecordingIndicator(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setFixedSize(340, 82)
+        self.setFixedSize(430, 154)
+        self.setWindowTitle('Whisper controls')
 
         self._elapsed_seconds = 0
         self._state = 'ready'
-        self._hide_generation = 0
+        self._latest_text = ''
+        self._drag_offset = None
+        self._copy_generation = 0
 
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
 
         self.card = QFrame()
         self.card.setObjectName('recordingCard')
-        card_layout = QHBoxLayout(self.card)
-        card_layout.setContentsMargins(18, 12, 18, 12)
-        card_layout.setSpacing(14)
+        card_layout = QVBoxLayout(self.card)
+        card_layout.setContentsMargins(16, 13, 16, 14)
+        card_layout.setSpacing(9)
+
+        status_row = QHBoxLayout()
+        status_row.setSpacing(11)
 
         waveform = QWidget()
-        waveform.setFixedSize(38, 34)
+        waveform.setFixedSize(38, 30)
         waveform_layout = QHBoxLayout(waveform)
         waveform_layout.setContentsMargins(0, 0, 0, 0)
         waveform_layout.setSpacing(4)
@@ -386,7 +405,7 @@ class RecordingIndicator(QWidget):
             bar.setFixedSize(6, height)
             self.bars.append(bar)
             waveform_layout.addWidget(bar, alignment=Qt.AlignmentFlag.AlignBottom)
-        card_layout.addWidget(waveform)
+        status_row.addWidget(waveform)
 
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
@@ -396,16 +415,41 @@ class RecordingIndicator(QWidget):
         self.hint_label.setFont(QFont('Sans Serif', 9))
         text_layout.addWidget(self.state_label)
         text_layout.addWidget(self.hint_label)
-        card_layout.addLayout(text_layout, 1)
+        status_row.addLayout(text_layout, 1)
 
         self.timer_label = QLabel('00:00')
         self.timer_label.setFont(QFont('Monospace', 10, QFont.Weight.DemiBold))
-        card_layout.addWidget(self.timer_label)
+        status_row.addWidget(self.timer_label)
+        card_layout.addLayout(status_row)
+
+        self.transcript_label = QLabel('Your latest dictation will appear here.')
+        self.transcript_label.setWordWrap(True)
+        self.transcript_label.setFixedHeight(34)
+        self.transcript_label.setToolTip('No dictation yet')
+        self.transcript_label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        card_layout.addWidget(self.transcript_label)
+
+        controls = QHBoxLayout()
+        controls.setSpacing(8)
+        controls.addStretch(1)
+        self.copy_button = QPushButton('Copy')
+        self.copy_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.copy_button.setEnabled(False)
+        self.copy_button.setFixedHeight(32)
+        self.copy_button.clicked.connect(self.copy_requested)
+        controls.addWidget(self.copy_button)
+        self.start_stop_button = QPushButton('Start')
+        self.start_stop_button.setObjectName('floatingPrimaryButton')
+        self.start_stop_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.start_stop_button.setFixedHeight(32)
+        self.start_stop_button.clicked.connect(self.start_stop_requested)
+        controls.addWidget(self.start_stop_button)
+        card_layout.addLayout(controls)
         outer_layout.addWidget(self.card)
 
         self.elapsed_timer = QTimer(self)
         self.elapsed_timer.timeout.connect(self._tick)
-        self._apply_state('recording')
+        self._apply_state('ready')
 
     def _apply_state(self, state):
         self._state = state
@@ -413,41 +457,95 @@ class RecordingIndicator(QWidget):
         self.card.setStyleSheet(
             """
             QFrame#recordingCard {
-                background-color: #F4F7F9;
-                border: 1px solid #CBD6DD;
-                border-radius: 18px;
+                background-color: #F8FAFD;
+                border: 1px solid #C7D3E1;
+                border-radius: 16px;
             }
             QLabel { color: #14202B; background: transparent; border: none; }
+            QPushButton {
+                color: #25334A;
+                background: #FFFFFF;
+                border: 1px solid #C9D4E1;
+                border-radius: 7px;
+                padding: 0 13px;
+                font-weight: 650;
+            }
+            QPushButton:hover { background: #EDF3FA; border-color: #9FB0C5; }
+            QPushButton:pressed { background: #E1E9F2; }
+            QPushButton:disabled { color: #99A5B5; background: #EEF2F6; }
+            QPushButton#floatingPrimaryButton {
+                color: #FFFFFF;
+                background: %s;
+                border-color: %s;
+                min-width: 82px;
+            }
             """
+            % (accent, accent)
         )
         self.hint_label.setStyleSheet('color: #60727F;')
         self.timer_label.setStyleSheet(f'color: {accent};')
+        self.transcript_label.setStyleSheet(
+            'color: #33445A;' if self._latest_text else 'color: #7A8798;'
+        )
         for bar in self.bars:
             bar.setStyleSheet(f'background-color: {accent}; border-radius: 3px;')
 
-    def _position_on_active_screen(self):
+    def restore_position(self, x=None, y=None):
+        """Restore a saved position, keeping the controller on a visible screen."""
         screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
-        if screen:
+        if not screen:
+            return
+        if x is None or y is None:
             area = screen.availableGeometry()
-            self.move(area.right() - self.width() - 24, area.top() + 24)
+            x = area.right() - self.width() - 24
+            y = area.top() + 24
+        point_screen = QApplication.screenAt(QPoint(x, y))
+        target_screen = point_screen or screen
+        area = target_screen.availableGeometry()
+        x = max(area.left(), min(int(x), area.right() - self.width() + 1))
+        y = max(area.top(), min(int(y), area.bottom() - self.height() + 1))
+        self.move(x, y)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_offset = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_offset is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_offset)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._drag_offset is not None:
+            self._drag_offset = None
+            self.restore_position(self.x(), self.y())
+            self.position_changed.emit(self.x(), self.y())
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def _tick(self):
         self._elapsed_seconds += 1
         minutes, seconds = divmod(self._elapsed_seconds, 60)
         self.timer_label.setText(f'{minutes:02d}:{seconds:02d}')
 
-    def start_recording(self, trigger_key='Mouse5', hold_to_talk=False):
-        self._hide_generation += 1
+    def start_recording(self, trigger_key='NumpadEnter', hold_to_talk=False):
         self._elapsed_seconds = 0
         self.timer_label.setText('00:00')
         self.state_label.setText('Listening')
         if hold_to_talk:
             self.hint_label.setText(f'Release {trigger_key} to insert')
         else:
-            self.hint_label.setText(f'{trigger_key}: press again to finish')
+            self.hint_label.setText(f'{display_trigger_key(trigger_key)}: press again to finish')
         self._apply_state('recording')
+        self.start_stop_button.setText('Stop')
+        self.start_stop_button.setEnabled(True)
         self.elapsed_timer.start(1000)
-        self._position_on_active_screen()
         self.show()
         self.raise_()
 
@@ -463,9 +561,10 @@ class RecordingIndicator(QWidget):
         self.state_label.setText('Transcribing')
         self.hint_label.setText('Polishing your text…')
         self._apply_state('processing')
+        self.start_stop_button.setText('Processing…')
+        self.start_stop_button.setEnabled(False)
         for bar, height in zip(self.bars, (10, 18, 26, 14)):
             bar.setFixedHeight(height)
-        self._position_on_active_screen()
         self.show()
 
     def show_result(self, inserted):
@@ -474,9 +573,9 @@ class RecordingIndicator(QWidget):
         self.hint_label.setText('Ready for another dictation')
         self.timer_label.setText('✓')
         self._apply_state('ready')
-        self._position_on_active_screen()
+        self.start_stop_button.setText('Start')
+        self.start_stop_button.setEnabled(True)
         self.show()
-        self._hide_later(1400)
 
     def show_cancelled(self, message='Recording cancelled'):
         self.elapsed_timer.stop()
@@ -484,26 +583,63 @@ class RecordingIndicator(QWidget):
         self.hint_label.setText('Audio was not saved')
         self.timer_label.setText('×')
         self._apply_state('cancelled')
-        self._position_on_active_screen()
+        self.start_stop_button.setText('Start')
+        self.start_stop_button.setEnabled(True)
         self.show()
-        self._hide_later(1200)
 
-    def show_error(self):
+    def show_error(self, can_start=True):
         self.elapsed_timer.stop()
         self.state_label.setText('Dictation error')
         self.hint_label.setText('Open the app for details')
         self.timer_label.setText('!')
         self._apply_state('error')
-        self._position_on_active_screen()
+        self.start_stop_button.setText('Start' if can_start else 'Unavailable')
+        self.start_stop_button.setEnabled(can_start)
         self.show()
-        self._hide_later(2200)
 
-    def _hide_later(self, delay_ms):
-        self._hide_generation += 1
-        generation = self._hide_generation
+    def show_ready(self):
+        self.elapsed_timer.stop()
+        self.state_label.setText('Ready')
+        self.hint_label.setText('Numpad Enter or Start')
+        self.timer_label.setText('•')
+        self._apply_state('ready')
+        self.start_stop_button.setText('Start')
+        self.start_stop_button.setEnabled(True)
+        self.show()
+
+    def show_loading(self):
+        self.elapsed_timer.stop()
+        self.state_label.setText('Loading speech model')
+        self.hint_label.setText('Dictation will be ready shortly')
+        self.timer_label.setText('…')
+        self._apply_state('processing')
+        self.start_stop_button.setText('Loading…')
+        self.start_stop_button.setEnabled(False)
+        self.show()
+
+    def set_latest_text(self, text):
+        self._latest_text = (text or '').strip()
+        if self._latest_text:
+            preview = self._latest_text.replace('\n', ' ')
+            if len(preview) > 150:
+                preview = preview[:147].rstrip() + '…'
+            self.transcript_label.setText(preview)
+            self.transcript_label.setToolTip(self._latest_text)
+            self.copy_button.setEnabled(True)
+        else:
+            self.transcript_label.setText('Your latest dictation will appear here.')
+            self.transcript_label.setToolTip('No dictation yet')
+            self.copy_button.setEnabled(False)
+        self._apply_state(self._state)
+
+    def show_copy_confirmation(self):
+        self._copy_generation += 1
+        generation = self._copy_generation
+        self.copy_button.setText('Copied')
         QTimer.singleShot(
-            delay_ms,
-            lambda: self.hide() if generation == self._hide_generation else None,
+            1000,
+            lambda: self.copy_button.setText('Copy')
+            if generation == self._copy_generation else None,
         )
 
 
@@ -585,11 +721,14 @@ class SettingsDialog(QDialog):
         key_layout.setVerticalSpacing(10)
         
         self.trigger_key_edit = QLineEdit()
-        self.trigger_key_edit.setText(self.settings.get('trigger_key', 'Mouse5'))
-        self.trigger_key_edit.setPlaceholderText('Mouse5, F12, CapsLock…')
+        self.trigger_key_edit.setText(self.settings.get('trigger_key', 'NumpadEnter'))
+        self.trigger_key_edit.setPlaceholderText('NumpadEnter, Mouse5, F12…')
         self.trigger_key_edit.setClearButtonEnabled(True)
         key_layout.addRow("Dictation key", self.trigger_key_edit)
-        shortcut_hint = QLabel('Mouse side buttons use hold-to-talk. Keyboard keys toggle recording.')
+        shortcut_hint = QLabel(
+            'NumpadEnter and other keyboard keys toggle recording. '
+            'Mouse side buttons use hold-to-talk.'
+        )
         shortcut_hint.setObjectName('sectionCaption')
         shortcut_hint.setWordWrap(True)
         key_layout.addRow('', shortcut_hint)
@@ -690,7 +829,7 @@ class GlobalHotkeyListener(QObject):
     cancel_triggered = pyqtSignal()
     error_occurred = pyqtSignal(str)
     
-    def __init__(self, key_name='Mouse5'):
+    def __init__(self, key_name='NumpadEnter'):
         super().__init__()
         self.key_name = key_name
         self.listener = None
@@ -704,6 +843,11 @@ class GlobalHotkeyListener(QObject):
         configured = self.key_name.strip().lower().replace(' ', '')
         return configured in {'mouse4', 'mouse5', 'x1', 'x2'}
 
+    @property
+    def is_numpad_enter(self):
+        configured = self.key_name.strip().lower().replace('-', '_').replace(' ', '_')
+        return configured in NUMPAD_ENTER_NAMES
+
     def _configured_mouse_button(self):
         configured = self.key_name.strip().lower().replace(' ', '')
         if configured in {'mouse4', 'x1'}:
@@ -711,6 +855,8 @@ class GlobalHotkeyListener(QObject):
         return getattr(mouse.Button, 'button9', getattr(mouse.Button, 'x2', None))
 
     def _matches(self, key):
+        if self.is_numpad_enter:
+            return getattr(key, 'vk', None) == NUMPAD_ENTER_X11_KEYSYM
         configured = self.key_name.strip().lower().replace('-', '_').replace(' ', '_')
         configured = {'capslock': 'caps_lock', 'escape': 'esc'}.get(configured, configured)
         special_key = getattr(keyboard.Key, configured, None)
@@ -742,6 +888,15 @@ class GlobalHotkeyListener(QObject):
                 
         try:
             self.listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+            # pynput normally maps KP_Enter to Key.enter, losing the distinction
+            # between keypad and main Enter. Preserve the X11 keysym for this
+            # listener so the configured shortcut can match it precisely.
+            if self.is_numpad_enter and hasattr(self.listener, '_KEYPAD_KEYS'):
+                keypad_keys = dict(self.listener._KEYPAD_KEYS)
+                keypad_keys[NUMPAD_ENTER_X11_KEYSYM] = keyboard.KeyCode.from_vk(
+                    NUMPAD_ENTER_X11_KEYSYM
+                )
+                self.listener._KEYPAD_KEYS = keypad_keys
             self.listener.daemon = True
             self.listener.start()
         except Exception as e:
@@ -864,7 +1019,7 @@ class MainWindow(QMainWindow):
         self._load_model()
         
         # Global Hotkey Listener
-        trigger_key = self.settings.get('trigger_key', 'Mouse5')
+        trigger_key = self.settings.get('trigger_key', 'NumpadEnter')
         self.hotkey_listener = self._create_hotkey_listener(trigger_key)
         self.hotkey_listener.start()
 
@@ -1006,7 +1161,9 @@ class MainWindow(QMainWindow):
 
         key_row = QHBoxLayout()
         key_row.setSpacing(9)
-        self.shortcut_label = QLabel(self.settings.get('trigger_key', 'Mouse5'))
+        self.shortcut_label = QLabel(
+            display_trigger_key(self.settings.get('trigger_key', 'NumpadEnter'))
+        )
         self.shortcut_label.setObjectName('shortcutKey')
         key_row.addWidget(self.shortcut_label)
         self.shortcut_hint = QLabel('hold to talk')
@@ -1246,12 +1403,12 @@ class MainWindow(QMainWindow):
     def _refresh_quick_settings(self):
         model = self.settings.get('model', 'small')
         language = normalize_language(self.settings.get('language', 'auto'))
-        trigger_key = self.settings.get('trigger_key', 'Mouse5')
+        trigger_key = self.settings.get('trigger_key', 'NumpadEnter')
         language_names = {'auto': 'Russian + English', 'ru': 'Russian', 'en': 'English'}
         self.model_value.setText(model.capitalize())
         self.language_value.setText(language_names.get(language, language))
-        self.hotkey_value.setText(trigger_key)
-        self.shortcut_label.setText(trigger_key)
+        self.hotkey_value.setText(display_trigger_key(trigger_key))
+        self.shortcut_label.setText(display_trigger_key(trigger_key))
         hold_to_talk = trigger_key.strip().lower().replace(' ', '') in {'mouse4', 'mouse5', 'x1', 'x2'}
         self.shortcut_hint.setText('hold to talk' if hold_to_talk else 'press to start or stop')
 
@@ -1403,7 +1560,7 @@ class MainWindow(QMainWindow):
                 return
 
             self.recording_indicator.start_recording(
-                self.settings.get('trigger_key', 'Mouse5'),
+                self.settings.get('trigger_key', 'NumpadEnter'),
                 hold_to_talk=hold_to_talk,
             )
             
@@ -1543,10 +1700,10 @@ class MainWindow(QMainWindow):
         try:
             previous_model = self.settings.get('model', 'small')
             previous_language = normalize_language(self.settings.get('language', 'auto'))
-            previous_trigger = self.settings.get('trigger_key', 'Mouse5')
+            previous_trigger = self.settings.get('trigger_key', 'NumpadEnter')
             dialog = SettingsDialog(self)
             if dialog.exec() == 1:  # QDialog.Accepted
-                trigger_key = self.settings.get('trigger_key', 'Mouse5')
+                trigger_key = self.settings.get('trigger_key', 'NumpadEnter')
                 if trigger_key != previous_trigger:
                     self.hotkey_listener.stop()
                     self.hotkey_listener = self._create_hotkey_listener(trigger_key)

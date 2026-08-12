@@ -23,9 +23,10 @@ class SettingsManager:
         
         # Default settings
         self._defaults = {
+            'settings_version': 2,
             'model': 'small',  # tiny, small, base, large
             'language': 'auto',  # Automatic Russian/English recognition
-            'trigger_key': 'Mouse5',  # Hold the side mouse button to dictate
+            'trigger_key': 'NumpadEnter',  # Toggle dictation from the numeric keypad
             'auto_copy_to_clipboard': True,
             'inject_into_focused_window': True,
             'auto_improve_text': True,
@@ -37,9 +38,13 @@ class SettingsManager:
             'min_silence_duration': 0.3,  # Minimum silence before stopping (seconds)
             'show_status_bar': True,
             'theme': 'light',  # light, dark, system
+            'floating_panel_x': None,
+            'floating_panel_y': None,
         }
         
-        self._settings = self._load_settings()
+        self._settings, migrated = self._load_settings()
+        if migrated:
+            self.save()
     
     def _load_settings(self):
         """Load settings from file or return defaults"""
@@ -47,13 +52,17 @@ class SettingsManager:
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     loaded = json.load(f)
+                    migrated = loaded.get('settings_version', 1) < 2
+                    if migrated and loaded.get('trigger_key', 'Mouse5') == 'Mouse5':
+                        loaded['trigger_key'] = 'NumpadEnter'
+                    loaded['settings_version'] = 2
                     # Merge with defaults to ensure all keys exist
                     merged = {**self._defaults, **loaded}
-                    return merged
+                    return merged, migrated
             except (OSError, TypeError, ValueError, json.JSONDecodeError):
                 logger.exception("Could not load settings from %s", self.config_file)
         
-        return self._defaults.copy()
+        return self._defaults.copy(), False
     
     def save(self):
         """Atomically save current settings to avoid partial JSON files."""
@@ -71,7 +80,9 @@ class SettingsManager:
     
     def load(self):
         """Load and return current settings"""
-        self._settings = self._load_settings()
+        self._settings, migrated = self._load_settings()
+        if migrated:
+            self.save()
         return self._settings
     
     def get(self, key, default=None):
