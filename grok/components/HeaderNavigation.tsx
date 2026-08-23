@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, usePathname } from "@/i18n/navigation";
+import { useLocale } from "next-intl";
 import { site } from "@/lib/site";
+import type { Locale } from "@/lib/catalog";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { Logo } from "./Logo";
 import { ShopStatusBadge } from "./ShopStatusBadge";
@@ -28,10 +31,17 @@ export function HeaderNavigation({
   closeLabel,
 }: Props) {
   const pathname = usePathname();
+  const locale = useLocale() as Locale;
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   const closeTimer = useRef<number | null>(null);
+
+  // Ensure portal target is available (client-only)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Close mobile drawer on route change
   if (prevPathname !== pathname) {
@@ -170,8 +180,9 @@ export function HeaderNavigation({
         </div>
       </div>
 
-      {/* Mobile Drawer */}
-      {isOpen && (
+      {/* Mobile Drawer — rendered into document.body via portal so it sits
+          above the sticky header's backdrop-filter stacking context */}
+      {isOpen && isMounted && createPortal(
         <div
           className="fixed inset-0 z-50 md:hidden"
           aria-modal="true"
@@ -292,12 +303,12 @@ export function HeaderNavigation({
                 style={{ transitionDelay: "360ms" }}
               >
                 <p>{site.street}, {site.district}</p>
-                <p>{site.hours.cs}</p>
+                <p>{site.hours[locale]}</p>
               </div>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }
