@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useMemo, useState, ViewTransition } from "react";
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import type { DeviceKind, DeviceModel, Locale } from "@/lib/catalog";
 import { formatRepairPrice } from "@/lib/money";
 import { Schematic } from "./Schematic";
@@ -15,7 +15,7 @@ type Props = {
   compact?: boolean;
   selectedId?: string;
   onSelect?: (id: string) => void;
-  photoSrc?: string;
+  photoSrc?: string | StaticImageData;
   photoAlt?: string;
   onQuote?: () => void;
   quoteButtonLabel?: string;
@@ -95,7 +95,8 @@ export function SchematicExplorer({
               fill
               sizes="(max-width: 768px) 90vw, 420px"
               className="object-cover"
-              priority
+              loading="eager"
+              placeholder={typeof photoSrc === "string" ? "empty" : "blur"}
               quality={70}
             />
           </div>
@@ -113,7 +114,9 @@ export function SchematicExplorer({
                 fill
                 sizes="(max-width: 768px) 90vw, 420px"
                 className="object-contain"
-                priority
+                loading="eager"
+                fetchPriority="high"
+                placeholder={typeof photoSrc === "string" ? "empty" : "blur"}
                 quality={75}
               />
             </div>
@@ -159,8 +162,8 @@ export function SchematicExplorer({
                   type="button"
                   className={
                     active
-                      ? "press min-h-11 border border-graphite bg-graphite px-3 text-sm text-paper font-medium shadow-xs"
-                      : "press min-h-11 border border-line bg-paper px-3 text-sm hover:border-graphite"
+                      ? "press min-h-11 border border-graphite bg-graphite px-3 text-sm text-paper font-medium shadow-xs rounded-sm"
+                      : "press min-h-11 border border-line bg-paper px-3 text-sm hover:border-graphite rounded-sm"
                   }
                   aria-pressed={active}
                   onClick={() => choose(repair.id)}

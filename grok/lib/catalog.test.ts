@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { brands, getBrand, getModel } from "./catalog.ts";
 
@@ -57,7 +59,10 @@ test("looks up a brand and a model by id", () => {
 test("every model has a local product photo", () => {
   for (const brand of brands) {
     for (const model of brand.models) {
-      assert.equal(model.image, `/devices/${model.id}.jpg`);
+      assert.ok(
+        existsSync(join(process.cwd(), "public", model.image)),
+        `${brand.id}/${model.id} is missing ${model.image}`,
+      );
     }
   }
 });

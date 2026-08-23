@@ -28,8 +28,12 @@ test("device page schematic reveals a CZK price", async ({ page }) => {
 
 test("brand list shows a photo for each model", async ({ page }) => {
   await page.goto("/repair/apple");
-  await expect(page.getByRole("img", { name: "iPhone 16 Pro" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "MacBook Air" })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "iPhone 16 Pro", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "MacBook Air", exact: true }),
+  ).toBeVisible();
 });
 
 test("language switch shows English", async ({ page }) => {
@@ -43,6 +47,23 @@ test("price filters write to the URL", async ({ page }) => {
   await expect(page.getByRole("columnheader", { name: "Značka" })).toBeVisible();
   await page.getByLabel("Všechny značky").selectOption("apple");
   await expect(page).toHaveURL(/brand=apple/);
+});
+
+test("price list paginates without rendering every row", async ({ page }) => {
+  await page.goto("/prices");
+  await expect(page.locator("tbody tr")).toHaveCount(25);
+  await page.getByRole("button", { name: /Další/ }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page.locator("tbody tr")).toHaveCount(25);
+  await page.goBack();
+  await expect(page).not.toHaveURL(/page=2/);
+});
+
+test("price search is reflected in the URL after a short debounce", async ({ page }) => {
+  await page.goto("/prices");
+  await page.getByPlaceholder(/iPhone 16/).fill("Pixel 8 Pro");
+  await expect(page).toHaveURL(/q=Pixel(?:\+|%20)8(?:\+|%20)Pro/);
+  await expect(page.locator("tbody tr")).toHaveCount(6);
 });
 
 test("contact form blocks a short name", async ({ page }) => {
@@ -92,6 +113,24 @@ test("quote API accepts a browser form post", async ({ request }, testInfo) => {
   expect(body.ok).toBe(true);
 });
 
+test("quote API rejects oversized and cross-origin requests", async ({
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+  const oversized = await request.post("/api/quote", {
+    data: { name: "Jana", contact: "+420777123456", note: "x".repeat(20_000) },
+  });
+  expect(oversized.status()).toBe(413);
+  expect((await oversized.json()).error).toBe("payload_too_large");
+
+  const crossOrigin = await request.post("/api/quote", {
+    headers: { Origin: "https://example.test" },
+    data: { name: "Jana", contact: "+420777123456" },
+  });
+  expect(crossOrigin.status()).toBe(403);
+  expect((await crossOrigin.json()).error).toBe("origin");
+});
+
 test("contact form offers Telegram when the bench inbox is not wired", async ({
   page,
 }) => {
@@ -100,4 +139,30 @@ test("contact form offers Telegram when the bench inbox is not wired", async ({
   await page.locator('input[name="contact"]').fill("+420777123456");
   await page.getByRole("button", { name: /Odeslat poptávku/ }).click();
   await expect(page.getByText(/Telegram ještě není napojený/)).toBeVisible();
+});
+
+test("contact form keeps a filled Telegram fallback after a network error", async ({
+  page,
+}) => {
+  await page.route("**/api/quote", (route) => route.abort());
+  await page.goto("/contact");
+  await page.locator('input[name="name"]').fill("Jana Novakova");
+  await page.locator('input[name="contact"]').fill("+420777123456");
+  await page.getByRole("button", { name: /Odeslat poptávku/ }).click();
+  const telegram = page.getByRole("link", { name: /Otevřít Telegram/ }).last();
+  await expect(telegram).toBeVisible();
+  await expect(telegram).toHaveAttribute("href", /\?text=.*Jana/);
+});
+
+test("mobile menu traps focus and returns it after Escape", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile");
+  await page.goto("/");
+  const trigger = page.getByRole("button", { name: "Menu" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Menu" });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zavřít" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
 });

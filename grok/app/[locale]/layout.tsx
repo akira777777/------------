@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Source_Sans_3, Unbounded } from "next/font/google";
+import { Source_Sans_3, Unbounded } from "next/font/google";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
@@ -15,7 +15,7 @@ const unbounded = Unbounded({
   variable: "--font-unbounded",
   subsets: ["latin", "cyrillic"],
   weight: ["500", "700"],
-  preload: true,
+  preload: false,
   display: "swap",
   adjustFontFallback: true,
 });
@@ -23,16 +23,7 @@ const unbounded = Unbounded({
 const sourceSans = Source_Sans_3({
   variable: "--font-source",
   subsets: ["latin", "cyrillic"],
-  preload: true,
-  display: "swap",
-  adjustFontFallback: true,
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex",
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500"],
-  preload: true,
+  preload: false,
   display: "swap",
   adjustFontFallback: true,
 });
@@ -95,7 +86,7 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${unbounded.variable} ${sourceSans.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${unbounded.variable} ${sourceSans.variable} h-full antialiased`}
       style={{ colorScheme: "light" }}
     >
       <body className="flex min-h-full flex-col font-sans text-graphite pb-16 sm:pb-0">

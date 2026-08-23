@@ -7,6 +7,11 @@ import { SharedTitle } from "@/components/SharedTitle";
 import { Link } from "@/i18n/navigation";
 import { brands, getModel, type Locale } from "@/lib/catalog";
 import { site } from "@/lib/site";
+import deviceHeroImage from "@/public/device-hero.jpg";
+import heroImage from "@/public/hero.jpg";
+import screenRepairImage from "@/public/screen-repair.jpg";
+import solderingImage from "@/public/soldering.jpg";
+import workshopImage from "@/public/workshop.jpg";
 
 export default async function HomePage({
   params,
@@ -32,11 +37,12 @@ export default async function HomePage({
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="/hero.jpg"
+            src={heroImage}
             alt={home("heroAlt")}
             fill
-            priority
+            loading="eager"
             fetchPriority="high"
+            placeholder="blur"
             quality={70}
             sizes="100vw"
             className="object-cover object-center"
@@ -87,7 +93,7 @@ export default async function HomePage({
                 durationLabel={repair("duration")}
                 onRequest={repair("onRequest")}
                 compact
-                photoSrc="/device-hero.jpg"
+                photoSrc={deviceHeroImage}
                 photoAlt={home("deviceAlt")}
               />
             ) : null}
@@ -104,7 +110,7 @@ export default async function HomePage({
               <Link
                 key={brand.id}
                 href={`/repair/${brand.id}`}
-                prefetch
+                prefetch={false}
                 transitionTypes={["nav-forward"]}
                 className="press border border-line bg-paper px-4 py-2.5 text-sm hover:border-graphite rounded-sm shadow-xs font-medium"
               >
@@ -150,12 +156,13 @@ export default async function HomePage({
             <div className="md:col-span-2 group overflow-hidden border border-line bg-paper rounded-md shadow-xs transition-shadow hover:shadow-md">
               <div className="relative aspect-[16/9] w-full overflow-hidden bg-graphite">
                 <Image
-                  src="/workshop.jpg"
+                  src={workshopImage}
                   alt={home("photoBenchAlt")}
                   fill
                   sizes="(max-width: 768px) 100vw, 700px"
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
+                  placeholder="blur"
                 />
               </div>
               <div className="p-5">
@@ -173,12 +180,13 @@ export default async function HomePage({
               <div className="group overflow-hidden border border-line bg-paper rounded-md shadow-xs transition-shadow hover:shadow-md">
                 <div className="relative aspect-[4/3] w-full overflow-hidden bg-graphite">
                   <Image
-                    src="/screen-repair.jpg"
+                    src={screenRepairImage}
                     alt={home("photoScreenAlt")}
                     fill
                     sizes="(max-width: 768px) 100vw, 360px"
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
+                    placeholder="blur"
                   />
                 </div>
                 <div className="p-4">
@@ -191,12 +199,13 @@ export default async function HomePage({
               <div className="group overflow-hidden border border-line bg-paper rounded-md shadow-xs transition-shadow hover:shadow-md">
                 <div className="relative aspect-[4/3] w-full overflow-hidden bg-graphite">
                   <Image
-                    src="/soldering.jpg"
+                    src={solderingImage}
                     alt={home("photoSolderingAlt")}
                     fill
                     sizes="(max-width: 768px) 100vw, 360px"
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
+                    placeholder="blur"
                   />
                 </div>
                 <div className="p-4">

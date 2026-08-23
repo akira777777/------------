@@ -20,7 +20,8 @@
     "telegram": "Telegram",
     "skip": "Skip to content",
     "menu": "Menu",
-    "closeMenu": "Close"
+    "closeMenu": "Close",
+    "language": "Language"
   },
   "hero": {
     "eyebrow": "Bench shop · Prague 3, Žižkov",

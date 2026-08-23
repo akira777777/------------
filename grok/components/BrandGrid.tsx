@@ -16,7 +16,7 @@ export async function BrandGrid() {
         </p>
         <Link
           href={`/repair/${apple.id}`}
-          prefetch
+          prefetch={false}
           transitionTypes={["nav-forward"]}
           className="press mt-3 block border border-line bg-paper p-8 hover:border-graphite"
         >
@@ -37,7 +37,7 @@ export async function BrandGrid() {
             <Link
               key={brand.id}
               href={`/repair/${brand.id}`}
-              prefetch
+              prefetch={false}
               transitionTypes={["nav-forward"]}
               className="press border border-line bg-paper p-6 hover:border-graphite"
             >

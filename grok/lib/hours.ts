@@ -36,26 +36,36 @@ export function getShopStatus(date: Date = new Date(), locale: Locale = "cs"): S
 
   const isOpen = isWeekday && totalMinutes >= openMinutes && totalMinutes < closeMinutes;
 
-  // After closing on Friday (Fri >= 19:00), next opening is Monday — not tomorrow.
-  const isFridayAfterClose = dayOfWeek === "Fri" && totalMinutes >= closeMinutes;
-  const nextOpenLabel = {
-    cs: isFridayAfterClose || isWeekend ? "Otevíráme v pondělí v 09:00" : totalMinutes < openMinutes ? "Dnes otevíráme v 09:00" : "Otevíráme zítra v 09:00",
-    en: isFridayAfterClose || isWeekend ? "Opens Monday at 09:00" : totalMinutes < openMinutes ? "Opens today at 09:00" : "Opens tomorrow at 09:00",
-    ru: isFridayAfterClose || isWeekend ? "Откроемся в понедельник в 09:00" : totalMinutes < openMinutes ? "Сегодня откроемся в 09:00" : "Откроемся завтра в 09:00",
-  };
-
   const labels = {
     cs: {
       open: "Právě máme otevřeno (do 19:00)",
-      closed: `Zavřeno · ${nextOpenLabel.cs}`,
+      closed: isWeekend
+        ? "Zavřeno · Otevíráme v pondělí v 09:00"
+        : totalMinutes < openMinutes
+        ? "Zavřeno · Dnes otevíráme v 09:00"
+        : dayOfWeek === "Fri"
+        ? "Zavřeno · Otevíráme v pondělí v 09:00"
+        : "Zavřeno · Otevíráme zítra v 09:00",
     },
     en: {
       open: "Open now (until 19:00)",
-      closed: `Closed · ${nextOpenLabel.en}`,
+      closed: isWeekend
+        ? "Closed · Opens Monday at 09:00"
+        : totalMinutes < openMinutes
+        ? "Closed · Opens today at 09:00"
+        : dayOfWeek === "Fri"
+        ? "Closed · Opens Monday at 09:00"
+        : "Closed · Opens tomorrow at 09:00",
     },
     ru: {
       open: "Сейчас открыто (до 19:00)",
-      closed: `Закрыто · ${nextOpenLabel.ru}`,
+      closed: isWeekend
+        ? "Закрыто · Откроемся в понедельник в 09:00"
+        : totalMinutes < openMinutes
+        ? "Закрыто · Сегодня откроемся в 09:00"
+        : dayOfWeek === "Fri"
+        ? "Закрыто · Откроемся в понедельник в 09:00"
+        : "Закрыто · Откроемся завтра в 09:00",
     },
   };
 

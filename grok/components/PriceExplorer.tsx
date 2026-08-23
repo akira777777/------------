@@ -13,32 +13,60 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
+  brands,
+  REPAIR_NAMES,
+  type RepairCategory,
+} from "@/lib/catalog";
+import { formatRepairPrice, type Locale } from "@/lib/money";
+import {
   parsePriceFilters,
   type PriceFilters,
   type PriceRow,
 } from "@/lib/prices";
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 25;
 
 type Option = { id: string; name: string };
 
-type Props = {
-  rows: PriceRow[];
-  brandOptions: Option[];
-  repairOptions: Option[];
-};
+const BRAND_OPTIONS: Option[] = brands.map(({ id, name }) => ({ id, name }));
 
-export function PriceExplorer({ rows, brandOptions, repairOptions }: Props) {
+export function PriceExplorer({ locale }: { locale: Locale }) {
   const t = useTranslations("prices");
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const rows = useMemo<PriceRow[]>(
+    () =>
+      brands.flatMap((brand) =>
+        brand.models.flatMap((model) =>
+          model.repairs.map((repair) => ({
+            id: `${brand.id}-${model.id}-${repair.id}`,
+            brandId: brand.id,
+            brandName: brand.name,
+            modelName: model.name,
+            repairId: repair.id,
+            repairName: repair.name[locale],
+            price: formatRepairPrice(repair, locale),
+            href: `/repair/${brand.id}/${model.id}`,
+          })),
+        ),
+      ),
+    [locale],
+  );
+  const repairOptions = useMemo(
+    () =>
+      (Object.keys(REPAIR_NAMES) as RepairCategory[]).map((id) => ({
+        id,
+        name: REPAIR_NAMES[id][locale],
+      })),
+    [locale],
+  );
   const allowed = useMemo(
     () => ({
-      brands: new Set(brandOptions.map((option) => option.id)),
+      brands: new Set(BRAND_OPTIONS.map((option) => option.id)),
       repairs: new Set(repairOptions.map((option) => option.id)),
     }),
-    [brandOptions, repairOptions],
+    [repairOptions],
   );
   const filters = useMemo(
     () =>
@@ -58,7 +86,6 @@ export function PriceExplorer({ rows, brandOptions, repairOptions }: Props) {
   const [previousQuery, setPreviousQuery] = useState(filters.query);
 
   if (previousQuery !== filters.query) {
-    clearTimeout(searchTimer.current);
     setPreviousQuery(filters.query);
     setSearchTerm(filters.query);
   }
@@ -138,7 +165,7 @@ export function PriceExplorer({ rows, brandOptions, repairOptions }: Props) {
             onChange={(event) => apply({ brandId: event.target.value, page: 1 })}
           >
             <option value="all">{t("allBrands")}</option>
-            {brandOptions.map((option) => (
+            {BRAND_OPTIONS.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
               </option>

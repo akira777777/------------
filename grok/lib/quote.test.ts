@@ -63,6 +63,34 @@ test("formats a Telegram message a bench can read", () => {
   assert.match(text, /True Tone/);
 });
 
+test("formats a Telegram message with English labels when locale is en", () => {
+  const text = formatTelegramMessage({
+    name: "John Smith",
+    contact: "+420 777 123 456",
+    device: "iPhone 15",
+    repair: "battery",
+    locale: "en",
+  });
+  assert.match(text, /new inquiry/i);
+  assert.match(text, /Name:/);
+  assert.match(text, /Contact:/);
+  assert.match(text, /Device:/);
+  assert.match(text, /Repair:/);
+});
+
+test("formats a Telegram message with Russian labels when locale is ru", () => {
+  const text = formatTelegramMessage({
+    name: "Иван Иванов",
+    contact: "+420 777 123 456",
+    device: "iPhone 15",
+    repair: "battery",
+    locale: "ru",
+  });
+  assert.match(text, /новая заявка/);
+  assert.match(text, /Имя:/);
+  assert.match(text, /Устройство:/);
+});
+
 test("fills in a missing device or repair instead of rejecting the quote", () => {
   const result = parseQuote({
     name: "Jana Nováková",

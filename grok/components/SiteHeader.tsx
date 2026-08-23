@@ -22,6 +22,7 @@ export async function SiteHeader() {
         telegramLabel={t("telegram")}
         menuLabel={t("menu")}
         closeLabel={t("closeMenu")}
+        languageLabel={t("language")}
       />
     </header>
   );

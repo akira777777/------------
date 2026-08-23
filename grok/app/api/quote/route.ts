@@ -3,17 +3,26 @@ import { handleQuote, payloadFromForm } from "@/lib/quote";
 import { rateLimit } from "@/lib/rate-limit";
 import { site } from "@/lib/site";
 
+const MAX_BODY_BYTES = 16 * 1024;
+const RETRY_AFTER_SECONDS = 10 * 60;
+
+class PayloadTooLargeError extends Error {}
+
 function allowedOrigin(request: Request): boolean {
+  if (request.headers.get("sec-fetch-site") === "cross-site") return false;
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
-    const host = new URL(origin).host;
-    return (
-      host === "localhost:3000" ||
-      host === "127.0.0.1:3000" ||
-      host === "fixart.vercel.app" ||
-      (host.endsWith(".vercel.app") && host.includes("fixart"))
-    );
+    const requestUrl = new URL(request.url);
+    const host =
+      request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+      request.headers.get("host") ||
+      requestUrl.host;
+    const protocol =
+      request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+      requestUrl.protocol.replace(/:$/, "");
+    const originUrl = new URL(origin);
+    return originUrl.host === host && originUrl.protocol === `${protocol}:`;
   } catch {
     return false;
   }
@@ -21,11 +30,32 @@ function allowedOrigin(request: Request): boolean {
 
 async function readPayload(request: Request): Promise<unknown> {
   const type = request.headers.get("content-type") ?? "";
-  if (type.includes("application/json")) {
-    return request.json();
+  const declaredSize = Number.parseInt(
+    request.headers.get("content-length") ?? "0",
+    10,
+  );
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_BODY_BYTES) {
+    throw new PayloadTooLargeError();
   }
-  if (type.includes("form")) {
-    return payloadFromForm(await request.formData());
+
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_BODY_BYTES) throw new PayloadTooLargeError();
+
+  if (type.includes("application/json")) {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+  if (type.includes("application/x-www-form-urlencoded")) {
+    return payloadFromForm(
+      new URLSearchParams(new TextDecoder().decode(bytes)).entries(),
+    );
+  }
+  if (type.includes("multipart/form-data")) {
+    const copy = new Request(request.url, {
+      method: "POST",
+      headers: { "Content-Type": type },
+      body: bytes,
+    });
+    return payloadFromForm(await copy.formData());
   }
   throw new Error("invalid");
 }
@@ -42,7 +72,10 @@ function contactPath(locale: unknown): string {
 
 export async function POST(request: Request) {
   if (!allowedOrigin(request)) {
-    return NextResponse.json({ ok: false, error: "origin" }, { status: 403 });
+    return NextResponse.json(
+      { ok: false, error: "origin" },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const ip =
@@ -51,8 +84,18 @@ export async function POST(request: Request) {
   let payload: unknown;
   try {
     payload = await readPayload(request);
-  } catch {
-    return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
+  } catch (error) {
+    const tooLarge = error instanceof PayloadTooLargeError;
+    return NextResponse.json(
+      {
+        ok: false,
+        error: tooLarge ? "payload_too_large" : "invalid",
+      },
+      {
+        status: tooLarge ? 413 : 400,
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   }
 
   const result = await handleQuote(payload, ip, {
@@ -73,9 +116,23 @@ export async function POST(request: Request) {
     return NextResponse.redirect(`${origin}${contactPath(locale)}?${query}`, 303);
   }
 
-  return NextResponse.json(result.body, { status: result.status });
+  return NextResponse.json(result.body, {
+    status: result.status,
+    headers: {
+      "Cache-Control": "no-store",
+      ...(result.status === 429
+        ? { "Retry-After": String(RETRY_AFTER_SECONDS) }
+        : {}),
+    },
+  });
 }
 
 export function GET() {
-  return NextResponse.json({ ok: false, error: "method" }, { status: 405 });
+  return NextResponse.json(
+    { ok: false, error: "method" },
+    {
+      status: 405,
+      headers: { Allow: "POST", "Cache-Control": "no-store" },
+    },
+  );
 }

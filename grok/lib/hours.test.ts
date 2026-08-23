@@ -24,3 +24,11 @@ test("returns localized status in english", () => {
   assert.equal(status.isOpen, false);
   assert.match(status.text, /Closed/);
 });
+
+test("after closing on Friday points to Monday", () => {
+  // Friday 20:00 Prague summer time (CEST)
+  const fridayEvening = new Date("2026-08-28T18:00:00Z");
+  assert.match(getShopStatus(fridayEvening, "cs").text, /pondělí/);
+  assert.match(getShopStatus(fridayEvening, "en").text, /Monday/);
+  assert.match(getShopStatus(fridayEvening, "ru").text, /понедельник/);
+});

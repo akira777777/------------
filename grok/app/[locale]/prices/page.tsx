@@ -3,9 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import { PageTransition } from "@/components/PageTransition";
 import { PriceExplorer } from "@/components/PriceExplorer";
-import { brands, REPAIR_NAMES, type RepairCategory } from "@/lib/catalog";
-import { formatRepairPrice, type Locale } from "@/lib/money";
-import type { PriceRow } from "@/lib/prices";
+import type { Locale } from "@/lib/money";
 
 export async function generateMetadata({
   params,
@@ -25,25 +23,6 @@ export default async function PricesPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("prices");
-  const lang = locale as Locale;
-  const rows: PriceRow[] = brands.flatMap((brand) =>
-    brand.models.flatMap((model) =>
-      model.repairs.map((repair) => ({
-        id: `${brand.id}-${model.id}-${repair.id}`,
-        brandId: brand.id,
-        brandName: brand.name,
-        modelName: model.name,
-        repairId: repair.id,
-        repairName: repair.name[lang],
-        price: formatRepairPrice(repair, lang),
-        href: `/repair/${brand.id}/${model.id}`,
-      })),
-    ),
-  );
-  const brandOptions = brands.map(({ id, name }) => ({ id, name }));
-  const repairOptions = (Object.keys(REPAIR_NAMES) as RepairCategory[]).map(
-    (id) => ({ id, name: REPAIR_NAMES[id][lang] }),
-  );
 
   return (
     <PageTransition>
@@ -53,11 +32,7 @@ export default async function PricesPage({
       <p className="mt-4 max-w-xl text-graphite/75">{t("subtitle")}</p>
       <div className="mt-10">
         <Suspense fallback={null}>
-          <PriceExplorer
-            rows={rows}
-            brandOptions={brandOptions}
-            repairOptions={repairOptions}
-          />
+          <PriceExplorer locale={locale as Locale} />
         </Suspense>
       </div>
     </div>

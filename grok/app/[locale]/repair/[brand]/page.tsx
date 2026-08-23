@@ -67,7 +67,7 @@ export default async function BrandPage({
           <li key={model.id}>
             <Link
               href={`/repair/${brand.id}/${model.id}`}
-              prefetch
+              prefetch={false}
               transitionTypes={["nav-forward"]}
               className="press block overflow-hidden border border-line bg-paper hover:border-graphite shadow-xs transition-shadow hover:shadow-md"
             >
@@ -84,7 +84,6 @@ export default async function BrandPage({
                       fill
                       sizes="(max-width: 640px) 50vw, 280px"
                       className="object-contain"
-                      priority={index < 2}
                       fetchPriority={index === 0 ? "high" : "auto"}
                       loading={index < 2 ? "eager" : "lazy"}
                     />

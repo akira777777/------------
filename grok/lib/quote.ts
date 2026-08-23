@@ -1,4 +1,17 @@
 import { z } from "zod";
+import {
+  formatTelegramMessage,
+  telegramShareUrl,
+  type Quote,
+  type QuoteApiResponse,
+} from "./quote-format.ts";
+
+export {
+  formatTelegramMessage,
+  telegramShareUrl,
+  type Quote,
+  type QuoteApiResponse,
+} from "./quote-format.ts";
 
 export const quoteSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -8,15 +21,6 @@ export const quoteSchema = z.object({
   note: z.string().trim().max(500).optional(),
   locale: z.enum(["cs", "en", "ru"]).optional(),
 });
-
-export type Quote = {
-  name: string;
-  contact: string;
-  device: string;
-  repair: string;
-  note?: string;
-  locale?: "cs" | "en" | "ru";
-};
 
 export function payloadFromForm(
   entries: Iterable<[string, FormDataEntryValue]>,
@@ -30,7 +34,9 @@ export function payloadFromForm(
 
 export function parseQuote(
   input: unknown,
-): { ok: true; data: Quote } | { ok: false; error: string } {
+):
+  | { ok: true; data: Quote }
+  | { ok: false; error: "name" | "contact" | "invalid" } {
   const result = quoteSchema.safeParse(input);
   if (!result.success) {
     const path = result.error.issues[0]?.path[0];
@@ -47,24 +53,6 @@ export function parseQuote(
       repair: result.data.repair || "—",
     },
   };
-}
-
-export function formatTelegramMessage(quote: Quote): string {
-  const lines = [
-    "FixArt — nová poptávka",
-    `Jméno: ${quote.name}`,
-    `Kontakt: ${quote.contact}`,
-    `Zařízení: ${quote.device}`,
-    `Oprava: ${quote.repair}`,
-  ];
-  if (quote.note) lines.push(`Poznámka: ${quote.note}`);
-  if (quote.locale) lines.push(`Jazyk: ${quote.locale}`);
-  return lines.join("\n");
-}
-
-export function telegramShareUrl(base: string, text: string): string {
-  const trimmed = base.replace(/\/$/, "");
-  return `${trimmed}?text=${encodeURIComponent(text)}`;
 }
 
 export async function sendTelegram(
@@ -99,16 +87,11 @@ function honeypotFilled(input: unknown): boolean {
 export type QuoteResult =
   | {
       status: 200;
-      body: {
-        ok: true;
-        via: "telegram" | "link";
-        telegram?: string;
-        text?: string;
-      };
+      body: Extract<QuoteApiResponse, { ok: true }>;
     }
   | {
       status: 400 | 429 | 502;
-      body: { ok: false; error: string; telegram?: string };
+      body: Extract<QuoteApiResponse, { ok: false }>;
     };
 
 export async function handleQuote(

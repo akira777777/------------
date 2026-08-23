@@ -4,7 +4,7 @@ export function Logo() {
   return (
     <Link
       href="/"
-      prefetch
+      prefetch={false}
       transitionTypes={["nav-fade"]}
       className="press font-display text-[1.35rem] font-medium tracking-tight text-graphite"
     >

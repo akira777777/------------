@@ -3,6 +3,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import Image from "next/image";
 import { PageTransition } from "@/components/PageTransition";
 import { site } from "@/lib/site";
+import solderingImage from "@/public/soldering.jpg";
+import workshopImage from "@/public/workshop.jpg";
 
 export async function generateMetadata({
   params,
@@ -39,12 +41,14 @@ export default async function AboutPage({
           <div className="overflow-hidden border border-line bg-paper rounded-md shadow-xs">
             <div className="relative aspect-[16/10] w-full overflow-hidden bg-graphite">
               <Image
-                src="/workshop.jpg"
+                src={workshopImage}
                 alt={home("photoBenchAlt")}
                 fill
                 sizes="(max-width: 640px) 100vw, 450px"
                 className="object-cover"
-                priority
+                loading="eager"
+                fetchPriority="high"
+                placeholder="blur"
               />
             </div>
             <p className="p-3 text-xs font-mono text-steel">
@@ -55,11 +59,12 @@ export default async function AboutPage({
           <div className="overflow-hidden border border-line bg-paper rounded-md shadow-xs">
             <div className="relative aspect-[16/10] w-full overflow-hidden bg-graphite">
               <Image
-                src="/soldering.jpg"
+                src={solderingImage}
                 alt={home("photoSolderingAlt")}
                 fill
                 sizes="(max-width: 640px) 100vw, 450px"
                 className="object-cover"
+                placeholder="blur"
               />
             </div>
             <p className="p-3 text-xs font-mono text-steel">

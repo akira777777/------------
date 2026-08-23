@@ -13,7 +13,7 @@ type Props = {
   durationLabel: string;
   onRequest: string;
   quoteTitle: string;
-  quoteThisRepairLabel?: string;
+  quoteThisRepairLabel: string;
 };
 
 export function DeviceRepair({
@@ -23,7 +23,7 @@ export function DeviceRepair({
   durationLabel,
   onRequest,
   quoteTitle,
-  quoteThisRepairLabel = "Poptat tuto opravu",
+  quoteThisRepairLabel,
 }: Props) {
   const [repairId, setRepairId] = useState(model.repairs[0]?.id ?? "");
   const quoteSectionRef = useRef<HTMLElement>(null);

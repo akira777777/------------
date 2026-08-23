@@ -29,6 +29,14 @@ export async function SiteFooter() {
           >
             Telegram {site.telegram}
           </a>
+          <a
+            href={site.whatsappUrl}
+            className="hover:text-kapton"
+            rel="noreferrer"
+            target="_blank"
+          >
+            WhatsApp
+          </a>
           <a href={`tel:${site.phone.replace(/\s/g, "")}`} className="hover:text-kapton">
             {site.phone}
           </a>
@@ -40,7 +48,7 @@ export async function SiteFooter() {
           </p>
           <Link
             href="/contact"
-            prefetch
+            prefetch={false}
             transitionTypes={["nav-fade"]}
             className="hover:text-kapton"
           >

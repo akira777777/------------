@@ -12,7 +12,7 @@ const labels: Record<AppLocale, { short: string; name: string }> = {
   ru: { short: "RU", name: "Русский" },
 };
 
-function LanguageSwitchLinks() {
+function LanguageSwitchLinks({ label }: { label: string }) {
   const locale = useLocale();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -23,7 +23,7 @@ function LanguageSwitchLinks() {
     <div
       className="flex items-center gap-1 font-mono text-xs uppercase tracking-wider"
       role="navigation"
-      aria-label="Language"
+      aria-label={label}
     >
       {routing.locales.map((item) => {
         const active = item === locale;
@@ -33,6 +33,7 @@ function LanguageSwitchLinks() {
             href={href}
             locale={item}
             replace
+            prefetch={false}
             transitionTypes={["nav-fade"]}
             hrefLang={item}
             lang={item}
@@ -52,7 +53,7 @@ function LanguageSwitchLinks() {
   );
 }
 
-export function LanguageSwitch() {
+export function LanguageSwitch({ label }: { label: string }) {
   return (
     <Suspense
       fallback={
@@ -66,7 +67,7 @@ export function LanguageSwitch() {
         </div>
       }
     >
-      <LanguageSwitchLinks />
+      <LanguageSwitchLinks label={label} />
     </Suspense>
   );
 }

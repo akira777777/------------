@@ -9,6 +9,11 @@ import {
   type FormEvent,
 } from "react";
 import { useTranslations } from "next-intl";
+import {
+  formatTelegramMessage,
+  telegramShareUrl,
+  type QuoteApiResponse,
+} from "@/lib/quote-format";
 import { site } from "@/lib/site";
 
 type Status = "idle" | "sending" | "success" | "fallback" | "error" | "rate";
@@ -54,48 +59,58 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
       return;
     }
 
+    const quote = {
+      name,
+      contact,
+      device: String(data.get("device") ?? "").trim() || "—",
+      repair: String(data.get("repair") ?? "").trim() || "—",
+      note: String(data.get("note") ?? "").trim() || undefined,
+      locale: locale === "en" || locale === "ru" ? locale : "cs",
+    } as const;
+    const fallbackUrl = telegramShareUrl(
+      site.telegramUrl,
+      formatTelegramMessage(quote),
+    );
+    setShareUrl(fallbackUrl);
     setStatus("sending");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
     try {
       const response = await fetch("/api/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
-          name,
-          contact,
-          device: String(data.get("device") ?? ""),
-          repair: String(data.get("repair") ?? ""),
-          note: String(data.get("note") ?? ""),
+          ...quote,
           website: String(data.get("website") ?? ""),
-          locale,
         }),
       });
-      const body = (await response.json().catch(() => ({}))) as {
-        ok?: boolean;
-        via?: string;
-        telegram?: string;
-        error?: string;
-      };
+      const body = (await response
+        .json()
+        .catch(() => null)) as QuoteApiResponse | null;
       if (response.status === 429) {
         setStatus("rate");
         return;
       }
-      if (body.ok && body.via === "link") {
+      if (body?.ok && body.via === "link") {
         startTransition(() => {
-          setShareUrl(body.telegram || site.telegramUrl);
+          setShareUrl(body.telegram);
           setStatus("fallback");
         });
         return;
       }
-      if (body.ok) {
+      if (body?.ok) {
         startTransition(() => setStatus("success"));
         return;
       }
-      if (body.error === "name") setNameError(true);
-      if (body.error === "contact") setContactError(true);
-      if (body.telegram) setShareUrl(body.telegram);
+      if (body?.error === "name") setNameError(true);
+      if (body?.error === "contact") setContactError(true);
+      if (body?.telegram) setShareUrl(body.telegram);
       setStatus("error");
     } catch {
       setStatus("error");
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -157,6 +172,9 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
           name="name"
           className="min-h-11 border border-line bg-paper px-3 py-2 rounded-md focus:border-steel focus:outline-none"
           autoComplete="name"
+          required
+          minLength={2}
+          maxLength={80}
           placeholder={t("namePlaceholder")}
           aria-invalid={nameError}
           aria-describedby={nameError ? "quote-name-error" : undefined}
@@ -177,6 +195,9 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
           spellCheck={false}
           className="min-h-11 border border-line bg-paper px-3 py-2 rounded-md focus:border-steel focus:outline-none"
           autoComplete="tel"
+          required
+          minLength={3}
+          maxLength={80}
           placeholder={t("contactPlaceholder")}
           aria-invalid={contactError}
           aria-describedby={contactError ? "quote-contact-error" : undefined}
@@ -195,6 +216,7 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
           className="min-h-11 border border-line bg-paper px-3 py-2 rounded-md focus:border-steel focus:outline-none"
           placeholder={t("devicePlaceholder")}
           autoComplete="off"
+          maxLength={80}
         />
       </label>
       <label className="grid gap-1 text-sm">
@@ -206,6 +228,7 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
           className="min-h-11 border border-line bg-paper px-3 py-2 rounded-md focus:border-steel focus:outline-none"
           placeholder={t("repairPlaceholder")}
           autoComplete="off"
+          maxLength={80}
         />
       </label>
       <label className="grid gap-1 text-sm">
@@ -213,6 +236,7 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
         <textarea
           name="note"
           rows={3}
+          maxLength={500}
           className="min-h-11 border border-line bg-paper px-3 py-2 rounded-md focus:border-steel focus:outline-none"
           placeholder={t("notePlaceholder")}
         />
@@ -235,7 +259,7 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
             t("submit")
           )}
         </button>
-        {status === "error" ? (
+        {status === "error" || status === "rate" ? (
           <a href={shareUrl} className="text-sm text-steel underline hover:text-graphite" rel="noreferrer" target="_blank">
             {t("openTelegram")}
           </a>

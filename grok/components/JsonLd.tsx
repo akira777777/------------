@@ -12,7 +12,7 @@ export function LocalBusinessJsonLd({ description }: { description: string }) {
     telephone: site.phone,
     email: site.email,
     url: site.url,
-    sameAs: [site.telegramUrl],
+    sameAs: [site.telegramUrl, site.whatsappUrl],
     address: {
       "@type": "PostalAddress",
       streetAddress: site.street,
