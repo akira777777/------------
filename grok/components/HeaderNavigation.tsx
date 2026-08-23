@@ -35,7 +35,6 @@ export function HeaderNavigation({
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [prevPathname, setPrevPathname] = useState(pathname);
   const closeTimer = useRef<number | null>(null);
 
   // Ensure portal target is available (client-only)
@@ -43,11 +42,11 @@ export function HeaderNavigation({
     setIsMounted(true);
   }, []);
 
-  // Close mobile drawer on route change
-  if (prevPathname !== pathname) {
-    setPrevPathname(pathname);
+  // Close mobile drawer on route change (in effect to avoid state updates during render)
+  useEffect(() => {
     closeDrawer();
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   function openDrawer() {
     if (closeTimer.current) {
@@ -187,6 +186,7 @@ export function HeaderNavigation({
           className="fixed inset-0 z-50 md:hidden"
           aria-modal="true"
           role="dialog"
+          aria-labelledby="mobile-drawer-title"
         >
           {/* Backdrop */}
           <button
@@ -206,7 +206,7 @@ export function HeaderNavigation({
             style={{ paddingTop: "env(safe-area-inset-top)" }}
           >
             <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <span className="text-sm font-medium uppercase tracking-wider text-steel">
+              <span id="mobile-drawer-title" className="text-sm font-medium uppercase tracking-wider text-steel">
                 {menuLabel}
               </span>
               <button
