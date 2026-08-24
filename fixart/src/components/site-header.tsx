@@ -62,7 +62,10 @@ export function SiteHeader() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => {
+      const isScrolled = window.scrollY > 8;
+      setScrolled((prev) => (prev !== isScrolled ? isScrolled : prev));
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);

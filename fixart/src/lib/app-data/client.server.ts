@@ -211,7 +211,9 @@ function tokenIdentityKey(token: string): string {
             .digest("base64url");
         }
       }
-    } catch {}
+    } catch {
+      // Ignore unparseable or invalid JWT payload tokens
+    }
   }
   return createHash("sha256").update(token).digest("base64url");
 }
