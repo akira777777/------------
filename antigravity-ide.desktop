@@ -1,8 +1,0 @@
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Antigravity IDE
-Exec=/home/akira/.local/bin/antigravity-ide %U
-Icon=/home/akira/Общедоступные/Antigravity IDE/resources/app/resources/linux/code.png
-Terminal=false
-Categories=Development;

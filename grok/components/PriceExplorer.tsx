@@ -226,7 +226,7 @@ export function PriceExplorer({ locale }: { locale: Locale }) {
             <button
               type="button"
               onClick={resetAll}
-              className="press mt-4 inline-flex min-h-11 items-center bg-enamel px-4 text-sm text-paper"
+              className="press mt-4 inline-flex min-h-11 items-center bg-enamel px-4 text-sm text-white"
             >
               {t("resetFilters")}
             </button>

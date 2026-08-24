@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Type=Application
+Name=Grok
+Exec=/opt/google/chrome/google-chrome --profile-directory=Default --app-id=ggjocahimgaohmigbfhghnlfcnjemagj
+Icon=chrome-ggjocahimgaohmigbfhghnlfcnjemagj-Default
+StartupWMClass=crx_ggjocahimgaohmigbfhghnlfcnjemagj

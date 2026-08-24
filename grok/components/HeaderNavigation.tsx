@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
-import { Link, usePathname } from "@/i18n/navigation";
 import type { Locale } from "@/lib/catalog";
 import { site } from "@/lib/site";
+import { InterfaceIcon } from "./InterfaceIcon";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { Logo } from "./Logo";
 import { ShopStatusBadge } from "./ShopStatusBadge";
 
 type Item = {
-  href: "/repair" | "/prices" | "/about" | "/faq" | "/contact";
+  hash: string;
   label: string;
 };
 
@@ -21,6 +21,7 @@ type Props = {
   menuLabel: string;
   closeLabel: string;
   languageLabel: string;
+  bookingLabel: string;
 };
 
 export function HeaderNavigation({
@@ -30,20 +31,14 @@ export function HeaderNavigation({
   menuLabel,
   closeLabel,
   languageLabel,
+  bookingLabel,
 }: Props) {
   const locale = useLocale() as Locale;
-  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [prevPathname, setPrevPathname] = useState(pathname);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Close mobile drawer on route change
-  if (prevPathname !== pathname) {
-    setPrevPathname(pathname);
-    setIsOpen(false);
-  }
+  const homePath = locale === "cs" ? "/" : `/${locale}`;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -62,7 +57,7 @@ export function HeaderNavigation({
   }, [isOpen]);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 768px)");
+    const desktop = window.matchMedia("(min-width: 1024px)");
     function closeOnDesktop(event: MediaQueryListEvent) {
       if (event.matches) setIsOpen(false);
     };
@@ -79,51 +74,51 @@ export function HeaderNavigation({
         {skipLabel}
       </a>
 
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3 sm:py-4">
-        <div className="flex items-center gap-4">
-          <Logo />
-          <div className="hidden lg:block">
-            <ShopStatusBadge />
-          </div>
-        </div>
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3">
+        <Logo />
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-x-5 text-sm">
-          {links.map((link) => {
-            const active =
-              pathname === link.href || pathname.startsWith(`${link.href}/`);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                prefetch={false}
-                transitionTypes={["nav-fade"]}
-                className={
-                  active
-                    ? "inline-flex min-h-11 items-center border-b-2 border-kapton text-graphite font-medium"
-                    : "press inline-flex min-h-11 items-center text-graphite/80 hover:text-graphite"
-                }
-                aria-current={active ? "page" : undefined}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+        <nav className="hidden lg:flex items-center gap-x-5 text-sm" aria-label="Main">
+          {links.map((link) => (
+            <a
+              key={link.hash}
+              href={`${homePath}#${link.hash}`}
+              className="press inline-flex min-h-11 items-center whitespace-nowrap text-steel transition-colors hover:text-graphite"
+            >
+              {link.label}
+            </a>
+          ))}
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <LanguageSwitch label={languageLabel} />
 
           <a
+            href={`tel:${site.phone.replace(/\s/g, "")}`}
+            className="press hidden min-h-11 items-center gap-2 whitespace-nowrap text-sm font-semibold text-graphite xl:inline-flex"
+          >
+            <InterfaceIcon name="call" className="h-4 w-4 text-kapton" />
+            {site.phone}
+          </a>
+
+          <a
             href={site.telegramUrl}
-            className="press hidden sm:inline-flex items-center min-h-11 bg-enamel px-3.5 py-1.5 text-sm font-medium text-paper rounded-sm shadow-xs"
+            className="press hidden min-h-11 items-center gap-2 whitespace-nowrap px-2 text-sm font-medium text-graphite hover:text-kapton md:inline-flex"
             rel="noreferrer"
             target="_blank"
           >
+            <InterfaceIcon name="telegram" className="h-4 w-4" />
             {telegramLabel}
           </a>
 
-          {/* Mobile Menu Button */}
+          <a
+            href={`${homePath}#booking`}
+            className="press hidden min-h-11 items-center whitespace-nowrap rounded-full bg-enamel px-4 text-sm font-semibold text-white shadow-[0_8px_28px_rgb(255_93_31_/_0.24)] md:inline-flex"
+          >
+            {bookingLabel}
+          </a>
+
+          {/* Compact navigation button */}
           <button
             ref={menuButtonRef}
             type="button"
@@ -131,11 +126,9 @@ export function HeaderNavigation({
             aria-expanded={isOpen}
             aria-controls="mobile-navigation"
             aria-label={menuLabel}
-            className="press md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-line bg-paper text-graphite p-2"
+            className="press lg:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line bg-paper text-graphite p-2"
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <InterfaceIcon name="menu" className="h-6 w-6" />
           </button>
         </div>
       </div>
@@ -149,12 +142,12 @@ export function HeaderNavigation({
           setIsOpen(false);
           menuButtonRef.current?.focus();
         }}
-        className="m-0 h-dvh max-h-none w-full max-w-none border-0 bg-aluminum/98 p-0 text-graphite backdrop:bg-graphite/40 md:hidden"
+        className="m-0 h-dvh max-h-none w-full max-w-none border-0 bg-aluminum/98 p-0 text-graphite backdrop:bg-black/70 lg:hidden"
       >
         {isOpen ? (
           <div className="flex h-full flex-col backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-line px-5 py-4 bg-paper/50">
-            <Logo />
+            <Logo onClick={() => setIsOpen(false)} />
             <button
               ref={closeButtonRef}
               type="button"
@@ -162,9 +155,7 @@ export function HeaderNavigation({
               aria-label={closeLabel}
               className="press inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-line bg-paper text-graphite"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <InterfaceIcon name="close" className="h-6 w-6" />
             </button>
           </div>
 
@@ -173,45 +164,45 @@ export function HeaderNavigation({
               <ShopStatusBadge />
             </div>
 
-            <nav className="flex flex-col gap-2">
-              {links.map((link) => {
-                const active =
-                  pathname === link.href || pathname.startsWith(`${link.href}/`);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    prefetch={false}
-                    onClick={() => setIsOpen(false)}
-                    className={
-                      active
-                        ? "flex items-center justify-between border-l-4 border-kapton bg-paper px-4 py-3 text-lg font-medium text-graphite"
-                        : "flex items-center justify-between border-l-4 border-transparent px-4 py-3 text-lg text-graphite/80 hover:bg-paper/50"
-                    }
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <span>{link.label}</span>
-                    <span className="font-mono text-xs text-steel">→</span>
-                  </Link>
-                );
-              })}
+            <nav className="flex flex-col gap-1">
+              {links.map((link) => (
+                <a
+                  key={link.hash}
+                  href={`${homePath}#${link.hash}`}
+                  onClick={() => setIsOpen(false)}
+                  className="flex min-h-12 items-center justify-between border-b border-line px-2 text-lg font-medium text-graphite"
+                >
+                  <span>{link.label}</span>
+                  <InterfaceIcon name="chevron" className="h-4 w-4 text-kapton" />
+                </a>
+              ))}
             </nav>
 
             <div className="pt-6 border-t border-line space-y-4">
               <a
+                href={`${homePath}#booking`}
+                onClick={() => setIsOpen(false)}
+                className="press flex min-h-12 w-full items-center justify-center rounded-full bg-enamel text-white font-semibold shadow-xs text-center"
+              >
+                {bookingLabel}
+              </a>
+
+              <a
                 href={site.telegramUrl}
-                className="press flex min-h-12 w-full items-center justify-center bg-enamel text-paper font-medium rounded-md shadow-xs text-center"
+                className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-line bg-paper text-graphite font-medium text-center"
                 rel="noreferrer"
                 target="_blank"
               >
-                💬 {telegramLabel}
+                <InterfaceIcon name="telegram" className="h-5 w-5 text-kapton" />
+                {telegramLabel}
               </a>
 
               <a
                 href={`tel:${site.phone.replace(/\s/g, "")}`}
-                className="press flex min-h-12 w-full items-center justify-center border border-line bg-paper text-graphite font-medium rounded-md text-center"
+                className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-line bg-paper text-graphite font-medium text-center"
               >
-                📞 {site.phone}
+                <InterfaceIcon name="call" className="h-5 w-5 text-kapton" />
+                {site.phone}
               </a>
             </div>
 

@@ -1,0 +1,250 @@
+[SYSTEM_PROMPT]You are Ministral-3-3B-Instruct-2512, a Large Language Model (LLM) created by Mistral AI, a French startup headquartered in Paris.
+You power an AI assistant called Le Chat.
+Your knowledge base was last updated on 2023-10-01.
+The current date is {today}.
+
+When you're not sure about some information or when the user's request requires up-to-date or specific data, you must use the available tools to fetch the information. Do not hesitate to use tools whenever they can provide a more accurate or complete response. If no relevant tools are available, then clearly state that you don't have the information and avoid making up anything.
+If the user's question is not clear, ambiguous, or does not provide enough context for you to accurately answer the question, you do not try to answer it right away and you rather ask the user to clarify their request (e.g. "What are some good restaurants around me?" => "Where are you?" or "When is the next flight to Tokyo" => "Where do you travel from?").
+You are always very attentive to dates, in particular you try to resolve dates (e.g. "yesterday" is {yesterday}) and when asked about information at specific dates, you discard information that is at another date.
+You follow these instructions in all languages, and always respond to the user in the language they use or request.
+Next sections describe the capabilities that you have.
+
+# WEB BROWSING INSTRUCTIONS
+
+You cannot perform any web search or access internet to open URLs, links etc. If it seems like the user is expecting you to do so, you clarify the situation and ask the user to copy paste the text directly in the chat.
+
+# MULTI-MODAL INSTRUCTIONS
+
+You have the ability to read images, but you cannot generate images. You also cannot transcribe audio files or videos.
+You cannot read nor transcribe audio files or videos.
+
+# TOOL CALLING INSTRUCTIONS
+
+You may have access to tools that you can use to fetch information or perform actions. You must use these tools in the following situations:
+
+1. When the request requires up-to-date information.
+2. When the request requires specific data that you do not have in your knowledge base.
+3. When the request involves actions that you cannot perform without tools.
+
+Always prioritize using tools to provide the most accurate and helpful response. If tools are not available, inform the user that you cannot perform the requested action at the moment.[/SYSTEM_PROMPT][AVAILABLE_TOOLS][{"type": "function", "function": {"name": "run_javascript", "description": "Run a JavaScript code snippet using deno. You cannot import external modules but you have read/write access to the current working directory.\n\nPass the code you wish to run as a string in the 'javascript' parameter.\n\nBy default, the code will timeout in 5 seconds. You can extend this timeout by setting the 'timeout_seconds' parameter to a higher value in seconds, up to a maximum of 60 seconds.\n\nYou will get the stdout and stderr output of the code execution, thus please print the output you wish to return using 'console.log' or 'console.error'.", "parameters": {"type": "object", "properties": {"javascript": {"type": "string"}, "timeout_seconds": {"type": "number"}}, "required": ["javascript"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "brave_web_search", "description": "Performs a web search using the Brave Search API, ideal for general queries, news, articles, and online content. Use this for broad information gathering, recent events, or when you need diverse web sources. Supports pagination, content filtering, and freshness controls. Maximum 20 results per request, with offset for pagination. ", "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query (max 400 chars, 50 words)"}, "count": {"type": "number", "description": "Number of results (1-20, default 10)", "default": 10}, "offset": {"type": "number", "description": "Pagination offset (max 9, default 0)", "default": 0}}, "required": ["query"]}}}, {"type": "function", "function": {"name": "brave_local_search", "description": "Searches for local businesses and places using Brave's Local Search API. Best for queries related to physical locations, businesses, restaurants, services, etc. Returns detailed information including:\n- Business names and addresses\n- Ratings and review counts\n- Phone numbers and opening hours\nUse this when the query implies 'near me' or mentions specific locations. Automatically falls back to web search if no local results are found.", "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "Local search query (e.g. 'pizza near Central Park')"}, "count": {"type": "number", "description": "Number of results (1-20, default 5)", "default": 5}}, "required": ["query"]}}}, {"type": "function", "function": {"name": "resolve-library-id", "description": "Resolves a package/product name to a Context7-compatible library ID and returns matching libraries.\n\nYou MUST call this function before 'Query Documentation' tool to obtain a valid Context7-compatible library ID UNLESS the user explicitly provides a library ID in the format '/org/project' or '/org/project/version' in their query.\n\nEach result includes:\n- Library ID: Context7-compatible identifier (format: /org/project)\n- Name: Library or package name\n- Description: Short summary\n- Code Snippets: Number of available code examples\n- Source Reputation: Authority indicator (High, Medium, Low, or Unknown)\n- Benchmark Score: Quality indicator (100 is the highest score)\n- Versions: List of versions if available. Use one of those versions if the user provides a version in their query. The format of the version is /org/project/version.\n\nFor best results, select libraries based on name match, source reputation, snippet coverage, benchmark score, and relevance to your use case.\n\nSelection Process:\n1. Analyze the query to understand what library/package the user is looking for\n2. Return the most relevant match based on:\n- Name similarity to the query (exact matches prioritized)\n- Description relevance to the query's intent\n- Documentation coverage (prioritize libraries with higher Code Snippet counts)\n- Source reputation (consider libraries with High or Medium reputation more authoritative)\n- Benchmark Score: Quality indicator (100 is the highest score)\n\nResponse Format:\n- Return the selected library ID in a clearly marked section\n- Provide a brief explanation for why this library was chosen\n- If multiple good matches exist, acknowledge this but proceed with the most relevant one\n- If no good matches exist, clearly state this and suggest query refinements\n\nFor ambiguous queries, request clarification before proceeding with a best-guess match.\n\nIMPORTANT: Do not call this tool more than 3 times per question. If you cannot find what you need after 3 calls, use the best result you have.", "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "What to look up in the library's documentation. This is used to rank library results by relevance to what the user is trying to accomplish. The query is sent to the Context7 API for processing. Do not include any sensitive or confidential information such as API keys, passwords, credentials, personal data, or proprietary code in your query."}, "libraryName": {"type": "string", "description": "Library name to search for and retrieve a Context7-compatible library ID. Use the official library name with proper punctuation — e.g., 'Next.js' instead of 'nextjs', 'Customer.io' instead of 'customerio', 'Three.js' instead of 'threejs'."}}, "required": ["query", "libraryName"]}}}, {"type": "function", "function": {"name": "query-docs", "description": "Retrieves and queries up-to-date documentation and code examples from Context7 for any programming library or framework.\n\nYou must call 'Resolve Context7 Library ID' tool first to obtain the exact Context7-compatible library ID required to use this tool, UNLESS the user explicitly provides a library ID in the format '/org/project' or '/org/project/version' in their query.\n\nDo not call this tool more than 3 times per question.", "parameters": {"type": "object", "properties": {"libraryId": {"type": "string", "description": "Exact Context7-compatible library ID (e.g., '/mongodb/docs', '/vercel/next.js', '/supabase/supabase', '/vercel/next.js/v14.3.0-canary.87') retrieved from 'resolve-library-id' or directly from user query in the format '/org/project' or '/org/project/version'."}, "query": {"type": "string", "description": "What to look up in the library's documentation, scoped to a single concept. Be specific and include relevant details, but keep each query to one topic — if the user's question spans multiple distinct concepts, make a separate call per concept instead of combining them, unless the question is about how the concepts interact. Good: 'How to set up authentication with JWT in Express.js' or 'React useEffect cleanup function examples'. Bad (too vague): 'auth' or 'hooks'. Bad (too broad): 'routing and auth and caching in Next.js'. The query is sent to the Context7 API for processing. Do not include any sensitive or confidential information such as API keys, passwords, credentials, personal data, or proprietary code in your query."}}, "required": ["libraryId", "query"]}}}, {"type": "function", "function": {"name": "read_file", "description": "Read the complete contents of a file as text. DEPRECATED: Use read_text_file instead.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "tail": {"type": "number", "description": "If provided, returns only the last N lines of the file"}, "head": {"type": "number", "description": "If provided, returns only the first N lines of the file"}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "read_text_file", "description": "Read the complete contents of a file from the file system as text. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Operates on the file as text regardless of extension. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "tail": {"type": "number", "description": "If provided, returns only the last N lines of the file"}, "head": {"type": "number", "description": "If provided, returns only the first N lines of the file"}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "read_media_file", "description": "Read a file and return it as a base64-encoded content block with its MIME type. Image and audio files are returned as image/audio content; any other file type is returned as an embedded resource. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "read_multiple_files", "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"paths": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "Array of file paths to read. Each path must be a string pointing to a valid file within allowed directories."}}, "required": ["paths"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "write_file", "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "edit_file", "description": "Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "edits": {"type": "array", "items": {"type": "object", "properties": {"oldText": {"type": "string", "description": "Text to search for - must match exactly"}, "newText": {"type": "string", "description": "Text to replace with"}}, "required": ["oldText", "newText"], "additionalProperties": false}}, "dryRun": {"type": "boolean", "default": false, "description": "Preview changes using git-style diff format"}}, "required": ["path", "edits"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "create_directory", "description": "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "list_directory", "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "list_directory_with_sizes", "description": "Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "sortBy": {"type": "string", "enum": ["name", "size"], "default": "name", "description": "Sort entries by name or size"}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "directory_tree", "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "excludePatterns": {"type": "array", "items": {"type": "string"}, "default": []}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "move_file", "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.", "parameters": {"type": "object", "properties": {"source": {"type": "string"}, "destination": {"type": "string"}}, "required": ["source", "destination"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "search_files", "description": "Recursively search for files and directories matching a pattern. The patterns should be glob-style patterns that match paths relative to the working directory. Use pattern like '*.ext' to match files in current directory, and '**/*.ext' to match files in all subdirectories. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "pattern": {"type": "string"}, "excludePatterns": {"type": "array", "items": {"type": "string"}, "default": []}}, "required": ["path", "pattern"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "get_file_info", "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": false}}}, {"type": "function", "function": {"name": "list_allowed_directories", "description": "Returns the list of directories that this server is allowed to access. Subdirectories within these allowed directories are also accessible. Use this to understand which directories and their nested paths are available before trying to access files.", "parameters": {"type": "object", "properties": {}}}}][/AVAILABLE_TOOLS][INST]build web about boxing[/INST]Building a website about boxing involves several key components: creating a visually appealing design, providing informative content, showcasing news, event schedules, and engaging with users. Below is a step-by-step guide to help you build your own **boxing website**:
+
+---
+
+### **1. Planning & Goal Setting**
+- **Define Purpose**: What is the purpose of your site? Will it focus on boxing history, training tips, events, fighters' profiles, or news?
+- **Target Audience**: Who are your visitors? Beginners, trainers, fans, athletes, etc.?
+- **Features**:
+  - Blog/Articles about boxing
+  - Fighter Profiles & Boxers Database
+  - Event Calendar (events like tournaments, shows)
+  - Training Tips and Guides
+  - News Updates
+  - User Registration/Login
+  - Community Forum or Discussion Board
+
+---
+
+### **2. Choose a Domain Name**
+- Pick a unique name related to boxing, e.g., `www.boxingworld.com`, `www.boxinghub.net`.
+- Register the domain through services like GoDaddy, Namecheap, or Google Domains.
+
+---
+
+### **3. Select Web Hosting Service**
+Popular options include:
+- Bluehost
+- SiteGround
+- Hostinger
+- AWS (for advanced users)
+
+---
+
+### **4. Design the Website**
+#### **Frontend Development:**
+- Use a **Content Management System (CMS)** like WordPress, or build from scratch using HTML, CSS, and JavaScript.
+  - If using WordPress:
+    - Plugins: Yoast SEO for optimization, Elementor for drag-and-drop design, WooCommerce for selling merch/training products.
+  - For a custom-built site, use frameworks like **React.js** or **Vue.js**.
+
+#### **Key Pages:**
+- Homepage
+- About Boxing/About Us
+- Fighters & Boxers Database (with search/filter functionality)
+- Blog/Articles Section
+- Events Calendar (integrate with APIs for live updates)
+- Contact Page
+
+---
+
+### **5. Develop Backend Functionality**
+- **Database**: Use MySQL or MongoDB to store boxer profiles, articles, and event details.
+  - For WordPress: Built-in database handling via plugins.
+- **User Management**: Allow users to register, log in, and manage their content (e.g., write blog posts).
+- **API Integration** (Optional):
+  - Use APIs for live scores or event data.
+
+---
+
+### **6. Build User Engagement Features**
+- Add a **newsletter subscription** via Mailchimp.
+- Create a **community forum** using WordPress plugins like BuddyPress.
+- Implement **social media integration** (Facebook, Twitter, Instagram).
+
+---
+
+### **7. Optimize for SEO**
+- Use SEO tools like Yoast SEO to optimize content and improve search rankings.
+- Add alt tags to images, write meta descriptions, and use keywords like "boxing news," "boxer profiles."
+
+---
+
+### **8. Launch & Test**
+- **Test on Multiple Devices**: Ensure responsiveness across desktops, tablets, and smartphones.
+- **Fix Bugs**: Check for broken links, slow loading times, etc.
+
+---
+
+### **9. Maintain & Update Regularly**
+- Keep content fresh with new articles, fighter profiles, and event updates.
+- Engage with your audience through comments, social media posts, and newsletters.
+
+---
+
+### **Optional Add-ons**
+- E-commerce: Sell training gear, books, or merch (if applicable).
+- Live Streaming: Integrate platforms like Twitch for live matches.
+- Analytics: Use Google Analytics to track visitor behavior.
+
+---
+
+### **Example Tech Stack**
+| Component        | Technology Choices                      |
+|------------------|----------------------------------------|
+| CMS              | WordPress                              |
+| Hosting          | Bluehost / SiteGround                  |
+| Frontend         | HTML/CSS/JS or React/Vue.js            |
+| Database         | MySQL/MongoDB                          |
+
+---
+
+### **Next Steps**
+If you want detailed guidance on a specific part (e.g., setting up WordPress, coding a fighter database, or designing the homepage), let me know! I can also help with code snippets and step-by-step tutorials. 🚀</s>[INST]i need web be brutal sport and with best boxers ever[/INST][THINK][/THINK]Creating a **"Web Be Brutal Sport"** website focused on boxing—the **best boxers ever**—requires a mix of **content, design, and functionality**. Here’s how you can build it:
+
+---
+
+### **1. Define the Website Structure**
+Your site should include:
+- **Homepage**: Hero banner with "Boxing Legends," latest news, or trending fighters.
+- **Best Boxers Ever Section**:
+  - Detailed profiles of legends like Muhammad Ali, Mike Tyson, Sugar Ray Robinson, Manny Pacquiao, etc.
+  - Photo galleries, fight highlights, and stats.
+- **Fight Chronicles**: Timeline of legendary matches (e.g., "The Fight of the Century").
+- **News & Updates**: Latest boxing headlines, interviews with fighters, and industry news.
+- **Training Tips & Guides**: How to train like a pro boxer.
+- **Community Forum**: Fans can discuss boxers, share stories, or ask questions.
+- **Merch Store** (Optional): Sell posters, books, or memorabilia related to legendary fighters.
+
+---
+
+### **2. Choose a Domain Name**
+Pick something catchy and related to boxing legends:
+- `www.webbebrutalsport.com`
+- `www.boxinglegendshub.net`
+- `www.brutalboxing.com`
+
+---
+
+### **3. Select a Web Hosting Provider**
+Recommendations:
+- **Bluehost** (Beginner-friendly, good for WordPress)
+- **SiteGround** (High performance and support)
+- **AWS/Azure** (For advanced users needing scalability)
+
+---
+
+### **4. Choose a Content Management System (CMS)**
+#### **Option A: WordPress**
+- Easiest way to build the site.
+- Use plugins like:
+  - **Yoast SEO** for optimization.
+  - **Elementor** or **Divi Builder** for drag-and-drop design.
+  - **WPForms** for contact forms and user registration.
+  - **WooCommerce** (if selling merch).
+
+#### **Option B: Custom-Built Site**
+- Use frameworks like:
+  - **React.js/Vue.js** for a modern frontend.
+  - **Node.js/Express** for backend logic.
+
+---
+
+### **5. Design the Website**
+- **Homepage**: Featured boxers, trending news, and a call-to-action button (e.g., "Explore Legends").
+- **Boxers Section**:
+  - Grid layout showing fighters with photos, stats, and fight highlights.
+- **Fight Highlights Video**: Integrate YouTube embeds or use APIs to fetch fight videos.
+
+---
+
+### **6. Build the Best Boxer Database**
+You can:
+- Create a custom database (e.g., MySQL) for fighter profiles.
+- Use plugins like **Boxer Profiles** (if using WordPress).
+
+Example Fighter Profile Page:
+```
+Title: Muhammad Ali
+Bio: "The Greatest"
+Fight Record: 61-5, KO's: 30
+Notable Matches: "Rumble in the Jungle," "Thrilla in Manila"
+```
+
+---
+
+### **7. Add Interactive Features**
+- **Search Box**: Let users search for boxers or fights.
+- **Filter Options**: By era (Golden Age, Modern Era), style (Brawler, Tech), etc.
+
+---
+
+### **8. Integrate News & Updates**
+- Use RSS feeds from boxing news websites like **BoxingScene.com**, **The Ring Magazine**.
+- Add a "Latest News" section with auto-updating content.
+
+---
+
+### **9. Optimize for SEO**
+- Write optimized blog posts (e.g., "Top 10 Greatest Boxers of All Time").
+- Use alt tags in images, meta descriptions, and keywords like "legendary boxers."
+
+---
+
+### **10. Launch & Test**
+- Ensure the site loads quickly.
+- Check mobile responsiveness.
+
+---
+
+### **11. Optional Features (E-Commerce & Community)**
+- **Merch Store**: Sell branded merchandise (e.g., posters of Muhammad Ali).
+- **Community Forum**: Use WordPress plugins like BuddyPress or use Discourse.
+
+---
+
+### **Example Tech Stack for WordPress**
+| Component         | Technology/Plugin          |
+|-------------------|---------------------------|
+| CMS               | WordPress                 |
+| Hosting           | Bluehost/SiteGround       |
+| Frontend Design   | Elementor/Divi Builder    |
+| Database          | MySQL (built-in WordPress) |
+| SEO               | Yoast SEO                 |
+| E-Commerce        | WooCommerce              |
+
+---
+
+### **Next Steps**
+Would you like help with:
+1. Setting up a WordPress site for this?
+2. Writing code snippets for fighter profiles or a custom database?
+3. Finding APIs to display fight highlights or news?

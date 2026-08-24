@@ -4,11 +4,11 @@ import { HeaderNavigation } from "./HeaderNavigation";
 export async function SiteHeader() {
   const t = await getTranslations("nav");
   const links = [
-    { href: "/repair" as const, label: t("repair") },
-    { href: "/prices" as const, label: t("prices") },
-    { href: "/about" as const, label: t("about") },
-    { href: "/faq" as const, label: t("faq") },
-    { href: "/contact" as const, label: t("contact") },
+    { hash: "services", label: t("repair") },
+    { hash: "pricing", label: t("prices") },
+    { hash: "workshop", label: t("about") },
+    { hash: "faq", label: t("faq") },
+    { hash: "contact", label: t("contact") },
   ];
 
   return (
@@ -23,6 +23,7 @@ export async function SiteHeader() {
         menuLabel={t("menu")}
         closeLabel={t("closeMenu")}
         languageLabel={t("language")}
+        bookingLabel={t("booking")}
       />
     </header>
   );

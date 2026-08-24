@@ -195,7 +195,7 @@ export function SchematicExplorer({
             <button
               type="button"
               onClick={onQuote}
-              className="press mt-5 inline-flex min-h-11 w-full sm:w-auto items-center justify-center bg-enamel px-5 py-2 text-sm font-medium text-paper rounded-sm shadow-xs"
+              className="press mt-5 inline-flex min-h-11 w-full sm:w-auto items-center justify-center bg-enamel px-5 py-2 text-sm font-medium text-white rounded-sm shadow-xs"
             >
               {quoteButtonLabel} ↓
             </button>

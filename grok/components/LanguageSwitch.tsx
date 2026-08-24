@@ -38,7 +38,7 @@ function LanguageSwitchLinks({ label }: { label: string }) {
             hrefLang={item}
             lang={item}
             aria-label={labels[item].name}
-            aria-current={active ? "true" : undefined}
+            aria-current={active ? "page" : undefined}
             className={
               active
                 ? "inline-flex min-h-11 min-w-11 items-center justify-center bg-graphite px-2 text-paper"

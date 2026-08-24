@@ -26,7 +26,7 @@ export default function ErrorView({
       <p className="mt-4 text-graphite/80">{t("body")}</p>
       <button
         type="button"
-        className="press mt-6 min-h-11 bg-enamel px-4 text-paper font-medium rounded-sm shadow-xs"
+        className="press mt-6 min-h-11 bg-enamel px-4 text-white font-medium rounded-sm shadow-xs"
         onClick={() => reset()}
       >
         {t("retry")}

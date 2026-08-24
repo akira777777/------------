@@ -23,7 +23,9 @@ export function ShopStatusBadge() {
     >
       <span
         className={`h-2 w-2 rounded-full ${
-          status.isOpen ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+          status.isOpen
+            ? "animate-pulse bg-emerald-500 motion-reduce:animate-none"
+            : "bg-amber-500"
         }`}
         aria-hidden
       />

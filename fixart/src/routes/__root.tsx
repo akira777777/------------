@@ -16,13 +16,8 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "A tiny workspace for spotting hot paths, render waste, and regressions before they ship.",
+          "Servis elektroniky v Praze 3. Výměna baterií, displejů a zadního skla pro iPhone, Samsung a MacBook se zárukou 12 měsíců.",
       },
-      { property: "og:title", content: "FixArt" },
-      { property: "og:description", content: "Debug and optimize faster with a focused signal dashboard." },
-      { property: "og:type", content: "website" },
-      { property: "og:image", content: "/og.jpg" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -35,7 +30,7 @@ export const Route = createRootRoute({
 
 function RootDocument() {
   return (
-    <html lang="en" suppressHydrationWarning className="antialiased">
+    <html lang="cs" suppressHydrationWarning className="antialiased">
       <head>
         <HeadContent />
       </head>

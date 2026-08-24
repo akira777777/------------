@@ -1,11 +1,12 @@
 import { Link } from "@/i18n/navigation";
 
-export function Logo() {
+export function Logo({ onClick }: { onClick?: () => void }) {
   return (
     <Link
       href="/"
       prefetch={false}
       transitionTypes={["nav-fade"]}
+      onClick={onClick}
       className="press font-display text-[1.35rem] font-medium tracking-tight text-graphite"
     >
       <span translate="no">FixArt</span>

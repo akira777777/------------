@@ -1,11 +1,14 @@
 #!/bin/sh
 set -eu
-cd /workspace
-if curl -sf -o /dev/null --max-time 2 http://127.0.0.1:8080/; then
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$SCRIPT_DIR"
+if curl -sf --max-time 2 http://127.0.0.1:8080/ | grep -qi '<title>FixArt'; then
   exit 0
 fi
-if [ -f /tmp/app-startup.pid ] && kill -0 "$(cat /tmp/app-startup.pid)" 2>/dev/null; then
+PID_FILE="${TMPDIR:-/tmp}/fixart-startup.pid"
+LOG_FILE="${TMPDIR:-/tmp}/fixart-startup.log"
+if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
   exit 0
 fi
-npm run dev >>/tmp/app-startup.log 2>&1 &
-echo $! >/tmp/app-startup.pid
+npm run dev >>"$LOG_FILE" 2>&1 &
+echo $! >"$PID_FILE"

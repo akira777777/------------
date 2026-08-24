@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-aluminum: #e8eaed;
-  --color-graphite: #1c1f24;
-  --color-kapton: #d08a2e;
-  --color-enamel: #c4382c;
-  --color-steel: #5b7c8a;
-  --color-paper: #f6f7f8;
-  --color-line: color-mix(in srgb, var(--color-graphite) 12%, transparent);
+  --color-aluminum: #111114;
+  --color-graphite: #f4f2ee;
+  --color-kapton: #ff8a2b;
+  --color-enamel: #ff641e;
+  --color-steel: #aaaab3;
+  --color-paper: #19191e;
+  --color-line: color-mix(in srgb, white 13%, transparent);
   --font-display: var(--font-unbounded), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-source), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -23,8 +23,9 @@
 html {
   background: var(--color-aluminum);
   color: var(--color-graphite);
-  color-scheme: light;
-  -webkit-tap-highlight-color: color-mix(in srgb, var(--color-steel) 22%, transparent);
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--color-kapton) 24%, transparent);
 }
 
 body {
@@ -35,6 +36,16 @@ body {
   touch-action: manipulation;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-kapton) 32%, transparent);
+  color: white;
 }
 
 h1,
@@ -48,7 +59,7 @@ h3 {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-steel);
+  outline: 2px solid var(--color-kapton);
   outline-offset: 3px;
 }
 
@@ -57,7 +68,48 @@ h3 {
   width: 3.5rem;
   height: 0.35rem;
   background: var(--color-kapton);
-  box-shadow: 0 1px 0 rgb(28 31 36 / 0.12);
+  box-shadow: 0 0 20px rgb(255 138 43 / 0.24);
+}
+
+.surface-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+.orange-glow {
+  background: radial-gradient(circle, rgb(255 100 30 / 0.2), transparent 68%);
+  filter: blur(10px);
+}
+
+.section-kicker {
+  color: var(--color-kapton);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+
+.card-lift {
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+@media (hover: hover) {
+  .card-lift:hover {
+    border-color: rgb(255 138 43 / 0.48);
+    transform: translateY(-3px);
+    box-shadow: 0 18px 55px rgb(0 0 0 / 0.24);
+  }
 }
 
 .schematic-stroke {
@@ -247,6 +299,10 @@ h3 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .hero-enter,
   .schematic-stroke {
     animation: none;

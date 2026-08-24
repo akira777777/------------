@@ -15,6 +15,7 @@ import {
   type QuoteApiResponse,
 } from "@/lib/quote-format";
 import { site } from "@/lib/site";
+import { InterfaceIcon } from "./InterfaceIcon";
 
 type Status = "idle" | "sending" | "success" | "fallback" | "error" | "rate";
 
@@ -142,7 +143,7 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
           <p>{t("fallback")}</p>
           <a
             href={shareUrl}
-            className="press mt-3 inline-flex min-h-11 items-center bg-enamel px-4 text-paper font-medium rounded-sm shadow-xs"
+            className="press mt-3 inline-flex min-h-11 items-center bg-enamel px-4 text-white font-medium rounded-sm shadow-xs"
             rel="noreferrer"
             target="_blank"
           >
@@ -151,7 +152,7 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
         </div>
       ) : (
     <form
-      className="relative grid gap-4"
+      className="relative grid gap-4 sm:grid-cols-2"
       method="post"
       action="/api/quote"
       onSubmit={onSubmit}
@@ -231,7 +232,7 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
           maxLength={80}
         />
       </label>
-      <label className="grid gap-1 text-sm">
+      <label className="grid gap-1 text-sm sm:col-span-2">
         <span className="font-medium">{t("note")}</span>
         <textarea
           name="note"
@@ -241,18 +242,15 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
           placeholder={t("notePlaceholder")}
         />
       </label>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <button
           type="submit"
-          className="press min-h-11 inline-flex items-center justify-center gap-2 bg-enamel px-5 text-sm font-medium text-paper rounded-sm disabled:opacity-60 shadow-xs"
+          className="press min-h-11 inline-flex items-center justify-center gap-2 bg-enamel px-5 text-sm font-medium text-white rounded-sm disabled:opacity-60 shadow-xs"
           disabled={status === "sending"}
         >
           {status === "sending" ? (
             <>
-              <svg className="h-4 w-4 animate-spin text-paper" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+              <InterfaceIcon name="loading" className="h-4 w-4 animate-spin text-white" />
               <span>{t("sending")}</span>
             </>
           ) : (
@@ -266,12 +264,12 @@ export function QuoteForm({ device = "", repair = "", locale }: Props) {
         ) : null}
       </div>
       {status === "error" ? (
-        <p className="text-sm text-enamel font-mono" role="alert">
+        <p className="text-sm text-enamel font-mono sm:col-span-2" role="alert">
           {t("error")}
         </p>
       ) : null}
       {status === "rate" ? (
-        <p className="text-sm text-enamel font-mono" role="alert">
+        <p className="text-sm text-enamel font-mono sm:col-span-2" role="alert">
           {t("rateError")}
         </p>
       ) : null}

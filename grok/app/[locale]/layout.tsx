@@ -29,8 +29,8 @@ const sourceSans = Source_Sans_3({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#e8eaed",
-  colorScheme: "light",
+  themeColor: "#111114",
+  colorScheme: "dark",
   viewportFit: "cover",
 };
 
@@ -45,6 +45,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "meta" });
+  const canonicalPath = locale === "cs" ? "/" : `/${locale}`;
+  const canonicalUrl = new URL(canonicalPath, site.url).toString();
+  const openGraphLocale =
+    locale === "cs" ? "cs_CZ" : locale === "ru" ? "ru_RU" : "en_GB";
   return {
     metadataBase: new URL(site.url),
     title: {
@@ -53,12 +57,32 @@ export async function generateMetadata({
     },
     description: t("description"),
     alternates: {
-      canonical: locale === "cs" ? "/" : `/${locale}`,
+      canonical: canonicalPath,
       languages: {
         cs: "/",
         en: "/en",
         ru: "/ru",
       },
+    },
+    openGraph: {
+      type: "website",
+      url: canonicalUrl,
+      siteName: site.name,
+      title: t("title"),
+      description: t("description"),
+      locale: openGraphLocale,
+      alternateLocale: ["cs_CZ", "en_GB", "ru_RU"].filter(
+        (item) => item !== openGraphLocale,
+      ),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: t("title"),
+      description: t("description"),
+    },
+    robots: {
+      index: true,
+      follow: true,
     },
   };
 }
@@ -87,9 +111,9 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       className={`${unbounded.variable} ${sourceSans.variable} h-full antialiased`}
-      style={{ colorScheme: "light" }}
+      style={{ colorScheme: "dark" }}
     >
-      <body className="flex min-h-full flex-col font-sans text-graphite pb-16 sm:pb-0">
+      <body className="flex min-h-full flex-col font-sans text-graphite pb-20 sm:pb-0">
         <NextIntlClientProvider locale={locale} messages={clientMessages}>
           <SiteHeader />
           <main id="main" className="flex-1 scroll-mt-24">
