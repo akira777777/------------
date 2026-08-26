@@ -26,6 +26,7 @@ export const NAV = [
   { id: "cenik", href: "#cenik" },
   { id: "garance", href: "#garance" },
   { id: "onas", href: "#o-nas" },
+  { id: "recenze", href: "#recenze" },
   { id: "otazky", href: "#otazky" },
   { id: "kontakt", href: "#kontakt" },
 ] as const;

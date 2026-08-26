@@ -1,15 +1,32 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { Lang } from "./i18n";
+
+function detectInitialLang(): Lang {
+  if (typeof navigator === "undefined") return "cs";
+  const lang = navigator.language.toLowerCase();
+  if (lang.startsWith("ru")) return "ru";
+  if (lang.startsWith("en")) return "en";
+  return "cs";
+}
 
 type LangState = {
   lang: Lang;
   setLang: (lang: Lang) => void;
 };
 
-export const useLang = create<LangState>((set) => ({
-  lang: "cs",
-  setLang: (lang) => set({ lang }),
-}));
+export const useLang = create<LangState>()(
+  persist(
+    (set) => ({
+      lang: detectInitialLang(),
+      setLang: (lang) => set({ lang }),
+    }),
+    {
+      name: "fixart-lang",
+      storage: createJSONStorage(() => localStorage),
+    },
+  ),
+);
 
 type BookingState = {
   open: boolean;
