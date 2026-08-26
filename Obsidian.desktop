@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Obsidian
+Comment=Knowledge base and notes
+Exec=/home/akira/Загрузки/Obsidian-1.13.7.AppImage --no-sandbox %U
+Icon=obsidian
+Terminal=false
+Categories=Office;
+MimeType=x-scheme-handler/obsidian;
+StartupNotify=true
+StartupWMClass=md.obsidian.Obsidian
+X-AppImage-Version=1.13.7
