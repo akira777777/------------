@@ -1,7 +1,7 @@
 import { Laptop, Search, Usb } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
-import { getTranslationOrFallback, type Lang } from "@/lib/i18n";
+import { DICTS } from "@/lib/i18n";
 import { FEATURED_SERVICES, MORE_SERVICES } from "@/lib/shop";
 import { useBooking, useLang } from "@/lib/store";
 import { formatCzk } from "@/lib/utils";
@@ -26,19 +26,16 @@ const FEATURE_LEAD = {
 
 export function Services() {
   const lang = useLang((s) => s.lang);
+  const t = DICTS[lang];
   const openBooking = useBooking((s) => s.openWith);
-
-  // Helper to get translation with fallback for nested keys
-  const t = (keyPath: string, fallback?: string): string => 
-    getTranslationOrFallback(lang as Lang, keyPath, fallback);
 
   return (
     <section id="opravy" className="scroll-mt-24 py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <p className="text-xs font-medium tracking-[0.22em] text-muted">{t("services.kicker")}</p>
-          <h2 className="mt-3 max-w-lg font-semibold tracking-tight text-section">{t("services.title")}</h2>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">{t("services.lead")}</p>
+          <p className="text-xs font-medium tracking-[0.22em] text-muted">{t.services.kicker}</p>
+          <h2 className="mt-3 max-w-lg font-semibold tracking-tight text-section">{t.services.title}</h2>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">{t.services.lead}</p>
         </Reveal>
 
         <Reveal className="reveal-stagger mt-10 grid gap-4 md:grid-cols-3">
