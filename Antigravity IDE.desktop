@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Antigravity IDE
+Comment=AI-powered development environment
+Exec="/home/akira/Downloads/Программы/Antigravity IDE/antigravity-ide" %F
+Icon=antigravity-ide
+Terminal=false
+Categories=Development;IDE;
+StartupNotify=true
+StartupWMClass=antigravity-ide

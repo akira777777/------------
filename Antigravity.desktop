@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Antigravity
+Comment=Agentic Desktop Application
+Exec=/home/akira/Downloads/Antigravity/Antigravity-x64/antigravity %U
+Icon=antigravity
+Terminal=false
+Categories=Development;
+StartupNotify=true
+StartupWMClass=Antigravity
