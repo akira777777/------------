@@ -2,16 +2,43 @@ import { z } from "zod";
 import { BOOKING_SERVICES, DEVICES, SHOP } from "./shop.ts";
 import type { Lang } from "./i18n.ts";
 
-const PHONE_RE = /^[1-9]\d{8}$/;
+const CZECH_PHONE_RE = /^[1-9]\d{8}$/;
+const INTL_PHONE_RE = /^[1-9]\d{7,14}$/;
 
 export function normalizePhone(raw: string): string | null {
-  let digits = raw.replace(/[^\d+]/g, "");
-  if (digits.startsWith("00")) digits = `+${digits.slice(2)}`;
-  if (digits.startsWith("+")) digits = digits.slice(1);
-  if (digits.startsWith("420")) digits = digits.slice(3);
-  if (digits.startsWith("0")) digits = digits.slice(1);
-  if (!PHONE_RE.test(digits)) return null;
-  return `+420${digits}`;
+  const trimmed = raw.trim();
+  const isExplicitIntl = trimmed.startsWith("+") || trimmed.startsWith("00");
+  let digits = trimmed.replace(/[^\d+]/g, "");
+
+  if (digits.startsWith("00")) {
+    digits = `+${digits.slice(2)}`;
+  }
+
+  if (isExplicitIntl && digits.startsWith("+")) {
+    const withoutPlus = digits.slice(1);
+    if (withoutPlus.startsWith("420")) {
+      const czDigits = withoutPlus.slice(3).replace(/^0+/, "");
+      if (CZECH_PHONE_RE.test(czDigits)) {
+        return `+420${czDigits}`;
+      }
+    }
+    if (INTL_PHONE_RE.test(withoutPlus)) {
+      return `+${withoutPlus}`;
+    }
+    return null;
+  }
+
+  let czDigits = digits.replace(/[^\d]/g, "");
+  if (czDigits.startsWith("420") && czDigits.length === 12) {
+    czDigits = czDigits.slice(3);
+  }
+  if (czDigits.startsWith("0")) {
+    czDigits = czDigits.slice(1);
+  }
+  if (!CZECH_PHONE_RE.test(czDigits)) {
+    return null;
+  }
+  return `+420${czDigits}`;
 }
 
 export function deviceFamily(device: string): "iphone" | "samsung" | "macbook" | "other" {

@@ -17,7 +17,19 @@ export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
   const lang = useLang((state) => state.lang);
+  const setLang = useLang((state) => state.setLang);
   const t = DICTS[lang];
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("fixart_lang");
+      if (saved && (saved === "cs" || saved === "en" || saved === "ru") && saved !== lang) {
+        setLang(saved);
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }, [lang, setLang]);
 
   useEffect(() => {
     document.documentElement.lang = lang;

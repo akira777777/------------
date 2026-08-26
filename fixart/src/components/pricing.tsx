@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
 import { DICTS } from "@/lib/i18n";
@@ -13,6 +13,26 @@ export function Pricing() {
   const [groupId, setGroupId] = useState<PriceGroupId>("iphone");
   const group = PRICE_GROUPS.find((item) => item.id === groupId) ?? PRICE_GROUPS[0];
 
+  function onTabKey(event: KeyboardEvent<HTMLDivElement>) {
+    const index = PRICE_GROUPS.findIndex((item) => item.id === groupId);
+    let nextIndex = -1;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      nextIndex = (index + 1) % PRICE_GROUPS.length;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      nextIndex = (index - 1 + PRICE_GROUPS.length) % PRICE_GROUPS.length;
+    }
+    if (nextIndex !== -1) {
+      const nextId = PRICE_GROUPS[nextIndex].id;
+      setGroupId(nextId);
+      const target =
+        event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex];
+      target?.focus();
+    }
+  }
+
   return (
     <section id="cenik" className="scroll-mt-24 py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -22,15 +42,23 @@ export function Pricing() {
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">{t.pricing.lead}</p>
         </Reveal>
 
-        <div className="mt-8 flex flex-wrap gap-2" role="tablist" aria-label={t.pricing.kicker}>
+        <div
+          className="mt-8 flex flex-wrap gap-2"
+          role="tablist"
+          aria-label={t.pricing.kicker}
+          onKeyDown={onTabKey}
+        >
           {PRICE_GROUPS.map((item) => {
             const selected = item.id === groupId;
             return (
               <button
                 key={item.id}
+                id={`pricing-tab-${item.id}`}
                 type="button"
                 role="tab"
                 aria-selected={selected}
+                aria-controls="pricing-tabpanel"
+                tabIndex={selected ? 0 : -1}
                 onClick={() => setGroupId(item.id)}
                 className={cn(
                   "h-11 rounded-md px-4 text-sm font-medium transition-[background-color,color,box-shadow] duration-150",
@@ -69,7 +97,12 @@ export function Pricing() {
           })}
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
+        <div
+          id="pricing-tabpanel"
+          role="tabpanel"
+          aria-labelledby={`pricing-tab-${groupId}`}
+          className="mt-6 overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]"
+        >
           <p className="px-5 pt-3 text-xs text-subtle md:hidden">{t.pricing.swipe}</p>
           <div className="overflow-x-auto">
             <table className="price-table w-full text-left text-sm">
@@ -123,7 +156,7 @@ export function Pricing() {
               >
                 <img
                   src={item.image}
-                  alt=""
+                  alt={copy.title}
                   width={1100}
                   height={825}
                   loading="lazy"

@@ -46,7 +46,7 @@ export function Services() {
             >
               <img
                 src={item.image}
-                alt=""
+                alt={t.repairs[item.id]}
                 width={1100}
                 height={825}
                 loading="lazy"
@@ -81,7 +81,7 @@ export function Services() {
               >
                 <img
                   src={item.image}
-                  alt=""
+                  alt={t.services[item.id]}
                   width={1100}
                   height={825}
                   loading="lazy"

@@ -8,7 +8,16 @@ type LangState = {
 
 export const useLang = create<LangState>((set) => ({
   lang: "cs",
-  setLang: (lang) => set({ lang }),
+  setLang: (lang) => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fixart_lang", lang);
+      }
+    } catch {
+      // Storage unavailable
+    }
+    set({ lang });
+  },
 }));
 
 type BookingState = {
