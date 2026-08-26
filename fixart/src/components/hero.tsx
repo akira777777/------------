@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -19,18 +19,6 @@ export function Hero() {
   const openBooking = useBooking((s) => s.openWith);
   const [active, setActive] = useState<RepairId>("display");
   const current = HERO_REPAIRS.find((item) => item.id === active) ?? HERO_REPAIRS[1];
-
-  function onTabKey(event: KeyboardEvent<HTMLDivElement>) {
-    const index = HERO_REPAIRS.findIndex((item) => item.id === active);
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      event.preventDefault();
-      setActive(HERO_REPAIRS[(index + 1) % HERO_REPAIRS.length].id);
-    }
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      event.preventDefault();
-      setActive(HERO_REPAIRS[(index - 1 + HERO_REPAIRS.length) % HERO_REPAIRS.length].id);
-    }
-  }
 
   useEffect(() => {
     const run = () => {
@@ -109,9 +97,7 @@ export function Hero() {
           </div>
           <div
             className="mt-4 flex flex-wrap gap-2"
-            role="tablist"
             aria-label={t.hero.repairsLabel}
-            onKeyDown={onTabKey}
           >
             {HERO_REPAIRS.map((item) => {
               const selected = item.id === active;
@@ -119,9 +105,7 @@ export function Hero() {
                 <button
                   key={item.id}
                   type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  tabIndex={selected ? 0 : -1}
+                  aria-pressed={selected}
                   onClick={() => setActive(item.id)}
                   className={cn(
                     "h-11 rounded-md px-3.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150",

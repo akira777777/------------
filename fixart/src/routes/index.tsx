@@ -6,6 +6,7 @@ import { Contact } from "@/components/contact";
 import { Faq } from "@/components/faq";
 import { Hero } from "@/components/hero";
 import { Pricing } from "@/components/pricing";
+import { Reviews } from "@/components/reviews";
 import { Services, Steps } from "@/components/services";
 import { MobileDock, SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -36,6 +37,7 @@ function Home() {
         <Pricing />
         <Warranty />
         <About />
+        <Reviews />
         <Faq />
         <Contact />
       </main>

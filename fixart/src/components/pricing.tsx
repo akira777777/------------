@@ -22,15 +22,14 @@ export function Pricing() {
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">{t.pricing.lead}</p>
         </Reveal>
 
-        <div className="mt-8 flex flex-wrap gap-2" role="tablist" aria-label={t.pricing.kicker}>
+        <div className="mt-8 flex flex-wrap gap-2" aria-label={t.pricing.kicker}>
           {PRICE_GROUPS.map((item) => {
             const selected = item.id === groupId;
             return (
               <button
                 key={item.id}
                 type="button"
-                role="tab"
-                aria-selected={selected}
+                aria-pressed={selected}
                 onClick={() => setGroupId(item.id)}
                 className={cn(
                   "h-11 rounded-md px-4 text-sm font-medium transition-[background-color,color,box-shadow] duration-150",
