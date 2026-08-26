@@ -80,8 +80,10 @@ export function BookingForm({
         );
         return;
       }
-      toast.success(t.contact.success);
-      window.open(result.telegramUrl, "_blank", "noopener,noreferrer");
+      toast.success(result.delivery === "telegram" ? t.contact.successSent : t.contact.success);
+      if (result.delivery === "handoff") {
+        window.open(result.telegramUrl, "_blank", "noopener,noreferrer");
+      }
       form.reset();
       onDone?.();
     } catch {

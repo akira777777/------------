@@ -160,6 +160,10 @@ export default defineConfig(({ command, isPreview }) => ({
     strictPort: true,
   },
   resolve: { tsconfigPaths: true },
+  // Keep PGLite external in the server bundle so Nitro can trace its WASM/data
+  // sidecars. Bundling only the JS loader makes production preview crash when
+  // DATABASE_URL is absent because pglite.data is no longer beside the module.
+  ssr: { external: ["@electric-sql/pglite"] },
   plugins: [
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.
@@ -174,6 +178,7 @@ export default defineConfig(({ command, isPreview }) => ({
       ? [
           nitro({
             preset: "vercel",
+            traceDeps: ["@electric-sql/pglite*"],
             // Auto-registers server/middleware/* (the PWA install page +
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.

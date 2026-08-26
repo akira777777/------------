@@ -35,10 +35,32 @@ export const bookingInputSchema = z.object({
 export type BookingInput = z.infer<typeof bookingInputSchema>;
 
 export type BookingResult =
-  | { ok: true; telegramUrl: string }
+  | { ok: true; delivery: "telegram" }
+  | { ok: true; delivery: "handoff"; telegramUrl: string }
   | { ok: false; error: "phone" | "rate" | "server" };
 
-export function parseBooking(raw: unknown): { ok: true; data: BookingInput; phone: string } | { ok: false; error: "phone" } {
+export function buildTelegramMessage(input: {
+  name: string;
+  phone: string;
+  device: string;
+  service: string;
+  message: string;
+  lang: Lang;
+}) {
+  return [
+    "Новая заявка FixArt",
+    `Имя: ${input.name}`,
+    `Телефон: ${input.phone}`,
+    `Устройство: ${input.device}`,
+    `Услуга: ${input.service}`,
+    input.message ? `Комментарий: ${input.message}` : "Комментарий: —",
+    `Язык: ${input.lang}`,
+  ].join("\n");
+}
+
+export function parseBooking(
+  raw: unknown,
+): { ok: true; data: BookingInput; phone: string } | { ok: false; error: "phone" } {
   const parsed = bookingInputSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "phone" };
   const phone = normalizePhone(parsed.data.phone);
@@ -57,14 +79,6 @@ export function buildTelegramUrl(input: {
   message: string;
   lang: Lang;
 }) {
-  const text = [
-    "FixArt — rezervace",
-    `${input.name} · ${input.phone}`,
-    `${input.device} · ${input.service}`,
-    input.message ? input.message : "",
-    input.lang !== "cs" ? `lang: ${input.lang}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const text = buildTelegramMessage(input);
   return `${SHOP.telegram}?text=${encodeURIComponent(text)}`;
 }

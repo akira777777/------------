@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildTelegramUrl, deviceFamily, normalizePhone, parseBooking } from "./booking.ts";
+import {
+  buildTelegramMessage,
+  buildTelegramUrl,
+  deviceFamily,
+  normalizePhone,
+  parseBooking,
+} from "./booking.ts";
 
 test("normalizes Czech phone numbers", () => {
   assert.equal(normalizePhone("737 500 587"), "+420737500587");
@@ -53,4 +59,23 @@ test("accepts a valid booking and builds a Telegram link", () => {
   });
   assert.match(url, /^https:\/\/t\.me\/liltrafficRUS\?text=/);
   assert.match(url, /Jan/);
+  assert.equal(
+    buildTelegramMessage({
+      name: parsed.data.name,
+      phone: parsed.phone,
+      device: parsed.data.device,
+      service: parsed.data.service,
+      message: parsed.data.message,
+      lang: parsed.data.lang,
+    }),
+    [
+      "Новая заявка FixArt",
+      "Имя: Jan Novak",
+      "Телефон: +420737500587",
+      "Устройство: iPhone 16",
+      "Услуга: battery",
+      "Комментарий: Po 10:00",
+      "Язык: cs",
+    ].join("\n"),
+  );
 });

@@ -8,7 +8,6 @@ export const LANGS: { id: Lang; label: string }[] = [
   { id: "ru", label: "RU" },
 ];
 
-
 const cs = {
   metaTitle: "FixArt — servis elektroniky Praha",
   metaDesc:
@@ -114,11 +113,23 @@ const cs = {
     extrasLead: "Ceny „od“. Po diagnostice řekneme, jestli stačí čištění, nebo je nutná výměna.",
     extras: {
       cameraRear: { title: "Zadní kamera", detail: "Modul i sklo objektivu. Kalibrace ostření." },
-      cameraFront: { title: "Přední kamera", detail: "Selfie modul, TrueDepth tam, kde to díl dovolí." },
+      cameraFront: {
+        title: "Přední kamera",
+        detail: "Selfie modul, TrueDepth tam, kde to díl dovolí.",
+      },
       speaker: { title: "Reproduktor / sluchátko", detail: "Čištění spár, výměna měniče." },
-      keyboard: { title: "Klávesnice MacBook", detail: "Top case včetně trackpadu u vybraných ročníků." },
-      water: { title: "Po tekutině", detail: "Otevření, sušení, měření koroze. Bez opravy platíte jen tuto položku." },
-      express: { title: "Expresní příplatek", detail: "Přednost ve frontě, vytáhneme díl ze skladu hned." },
+      keyboard: {
+        title: "Klávesnice MacBook",
+        detail: "Top case včetně trackpadu u vybraných ročníků.",
+      },
+      water: {
+        title: "Po tekutině",
+        detail: "Otevření, sušení, měření koroze. Bez opravy platíte jen tuto položku.",
+      },
+      express: {
+        title: "Expresní příplatek",
+        detail: "Přednost ve frontě, vytáhneme díl ze skladu hned.",
+      },
     },
     na: "—",
     groups: {
@@ -195,9 +206,24 @@ const cs = {
     kicker: "Recenze",
     title: "Co říkají zákazníci.",
     items: [
-      { name: "Jana K.", rating: 5, text: "Vyměnili displej na iPhone 15 Pro za hodinu. Kvalita perfektní, True Tone funguje. Děkuji!", service: "displej" },
-      { name: "Martin S.", rating: 5, text: "Baterie v MacBooku Air drží jako nová. Férová cena, příjemné jednání.", service: "baterie" },
-      { name: "Lucie M.", rating: 5, text: "Rozbité zadní sklo na Samsungu S24 — ani nepoznáte, že bylo opravováno. Doporučuji.", service: "sklo" },
+      {
+        name: "Jana K.",
+        rating: 5,
+        text: "Vyměnili displej na iPhone 15 Pro za hodinu. Kvalita perfektní, True Tone funguje. Děkuji!",
+        service: "displej",
+      },
+      {
+        name: "Martin S.",
+        rating: 5,
+        text: "Baterie v MacBooku Air drží jako nová. Férová cena, příjemné jednání.",
+        service: "baterie",
+      },
+      {
+        name: "Lucie M.",
+        rating: 5,
+        text: "Rozbité zadní sklo na Samsungu S24 — ani nepoznáte, že bylo opravováno. Doporučuji.",
+        service: "sklo",
+      },
     ],
   },
   faq: {
@@ -263,7 +289,8 @@ const cs = {
     message: "Poznámka (volitelné)",
     send: "Odeslat rezervaci",
     sending: "Odesílám…",
-    success: "Rezervace je připravená. Otevíráme Telegram.",
+    success: "Rezervace je připravená. V Telegramu klepněte na Odeslat.",
+    successSent: "Rezervace byla odeslána. Brzy se vám ozveme.",
     error: "Doplňte jméno a telefon.",
     errorPhone: "Zadejte platný český telefon, např. 737 500 587.",
     errorServer: "Rezervaci se nepodařilo odeslat. Napište nám na Telegram.",
@@ -389,14 +416,27 @@ const en: Tree = {
     included: "Included: part, labour, VAT, 12-month warranty, written protocol.",
     swipe: "Swipe the table sideways.",
     extrasTitle: "Other work",
-    extrasLead: "Prices are “from”. After diagnostics we say whether cleaning is enough, or a part has to come out.",
+    extrasLead:
+      "Prices are “from”. After diagnostics we say whether cleaning is enough, or a part has to come out.",
     extras: {
       cameraRear: { title: "Rear camera", detail: "Module and lens glass. Focus calibration." },
-      cameraFront: { title: "Front camera", detail: "Selfie module, TrueDepth where the part allows." },
+      cameraFront: {
+        title: "Front camera",
+        detail: "Selfie module, TrueDepth where the part allows.",
+      },
       speaker: { title: "Speaker / earpiece", detail: "Mesh cleaning or transducer replacement." },
-      keyboard: { title: "MacBook keyboard", detail: "Top case including trackpad on selected years." },
-      water: { title: "Liquid damage", detail: "Open, dry, measure corrosion. If you stop there, you only pay this line." },
-      express: { title: "Express surcharge", detail: "Jump the queue; we pull the part from stock immediately." },
+      keyboard: {
+        title: "MacBook keyboard",
+        detail: "Top case including trackpad on selected years.",
+      },
+      water: {
+        title: "Liquid damage",
+        detail: "Open, dry, measure corrosion. If you stop there, you only pay this line.",
+      },
+      express: {
+        title: "Express surcharge",
+        detail: "Jump the queue; we pull the part from stock immediately.",
+      },
     },
     na: "—",
     groups: {
@@ -463,7 +503,8 @@ const en: Tree = {
       "Premium parts, not the cheapest auction lot",
       "Protocol and receipt with every repair",
     ],
-    altWorkshop: "FixArt bench: an opened phone and MacBook on an ESD mat, Žižkov outside the window.",
+    altWorkshop:
+      "FixArt bench: an opened phone and MacBook on an ESD mat, Žižkov outside the window.",
     altHands: "Technician hands replacing an OLED display, no face in frame.",
     altAfter: "The same phone with a cracked screen on the left and restored on the right.",
     afterKicker: "Before / after",
@@ -473,9 +514,24 @@ const en: Tree = {
     kicker: "Reviews",
     title: "What customers say.",
     items: [
-      { name: "Jana K.", rating: 5, text: "Replaced my iPhone 15 Pro display in an hour. Perfect quality, True Tone works. Thanks!", service: "display" },
-      { name: "Martin S.", rating: 5, text: "MacBook Air battery lasts like new. Fair price, great service.", service: "battery" },
-      { name: "Lucie M.", rating: 5, text: "Cracked Samsung S24 back glass — you can't tell it was repaired. Highly recommend.", service: "glass" },
+      {
+        name: "Jana K.",
+        rating: 5,
+        text: "Replaced my iPhone 15 Pro display in an hour. Perfect quality, True Tone works. Thanks!",
+        service: "display",
+      },
+      {
+        name: "Martin S.",
+        rating: 5,
+        text: "MacBook Air battery lasts like new. Fair price, great service.",
+        service: "battery",
+      },
+      {
+        name: "Lucie M.",
+        rating: 5,
+        text: "Cracked Samsung S24 back glass — you can't tell it was repaired. Highly recommend.",
+        service: "glass",
+      },
     ],
   },
   faq: {
@@ -541,7 +597,8 @@ const en: Tree = {
     message: "Note (optional)",
     send: "Send booking",
     sending: "Sending…",
-    success: "Booking is ready. Opening Telegram.",
+    success: "Booking is ready. Tap Send in Telegram to finish.",
+    successSent: "Booking sent. We will contact you shortly.",
     error: "Please add your name and phone.",
     errorPhone: "Enter a valid Czech phone number, e.g. 737 500 587.",
     errorServer: "Could not send the booking. Message us on Telegram.",
@@ -659,11 +716,20 @@ const ru: Tree = {
     extrasTitle: "Другие работы",
     extrasLead: "Цены «от». После диагностики скажем, хватит ли чистки или нужна замена.",
     extras: {
-      cameraRear: { title: "Задняя камера", detail: "Модуль и стекло объектива. Калибровка фокуса." },
-      cameraFront: { title: "Передняя камера", detail: "Селфи-модуль, TrueDepth — где позволяет деталь." },
+      cameraRear: {
+        title: "Задняя камера",
+        detail: "Модуль и стекло объектива. Калибровка фокуса.",
+      },
+      cameraFront: {
+        title: "Передняя камера",
+        detail: "Селфи-модуль, TrueDepth — где позволяет деталь.",
+      },
       speaker: { title: "Динамик / слуховой", detail: "Чистка сетки или замена излучателя." },
       keyboard: { title: "Клавиатура MacBook", detail: "Top case с трекпадом на выбранных годах." },
-      water: { title: "После жидкости", detail: "Вскрытие, сушка, замер коррозии. Если на этом стоп — платите только эту строку." },
+      water: {
+        title: "После жидкости",
+        detail: "Вскрытие, сушка, замер коррозии. Если на этом стоп — платите только эту строку.",
+      },
       express: { title: "Срочный тариф", detail: "Вне очереди, деталь со склада сразу." },
     },
     na: "—",
@@ -741,9 +807,24 @@ const ru: Tree = {
     kicker: "Отзывы",
     title: "Что говорят клиенты.",
     items: [
-      { name: "Яна К.", rating: 5, text: "Заменили дисплей на iPhone 15 Pro за час. Качество отличное, True Tone работает. Спасибо!", service: "дисплей" },
-      { name: "Мартин С.", rating: 5, text: "Батарея в MacBook Air держит как новая. Честная цена, приятное обслуживание.", service: "батарея" },
-      { name: "Люция М.", rating: 5, text: "Разбитое заднее стекло на Samsung S24 — даже не заметно, что ремонтировали. Рекомендую.", service: "стекло" },
+      {
+        name: "Яна К.",
+        rating: 5,
+        text: "Заменили дисплей на iPhone 15 Pro за час. Качество отличное, True Tone работает. Спасибо!",
+        service: "дисплей",
+      },
+      {
+        name: "Мартин С.",
+        rating: 5,
+        text: "Батарея в MacBook Air держит как новая. Честная цена, приятное обслуживание.",
+        service: "батарея",
+      },
+      {
+        name: "Люция М.",
+        rating: 5,
+        text: "Разбитое заднее стекло на Samsung S24 — даже не заметно, что ремонтировали. Рекомендую.",
+        service: "стекло",
+      },
     ],
   },
   faq: {
@@ -809,7 +890,8 @@ const ru: Tree = {
     message: "Комментарий (необязательно)",
     send: "Отправить запись",
     sending: "Отправляем…",
-    success: "Запись готова. Открываем Telegram.",
+    success: "Заявка готова. В Telegram нажмите «Отправить».",
+    successSent: "Заявка отправлена. Мы скоро свяжемся с вами.",
     error: "Укажите имя и телефон.",
     errorPhone: "Укажите чешский телефон, например 737 500 587.",
     errorServer: "Не удалось отправить запись. Напишите в Telegram.",
@@ -853,7 +935,7 @@ export function getTranslation(lang: Lang, keyPath: string): string | undefined 
 
 export function getTranslationOrFallback(lang: Lang, keyPath: string, fallback?: string): string {
   const value = getTranslation(lang, keyPath);
-  return value ?? (fallback ?? "");
+  return value ?? fallback ?? "";
 }
 
 export function statusLabel(t: Tree, status: ShopStatus) {
