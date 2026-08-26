@@ -1,14 +1,15 @@
 import { useState, type KeyboardEvent } from "react";
 import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
-import { DICTS } from "@/lib/i18n";
+import { getTranslation } from "@/lib/i18n";
 import { EXTRA_SERVICES, PRICE_GROUPS, type PriceGroupId } from "@/lib/shop";
 import { useBooking, useLang } from "@/lib/store";
 import { cn, formatCzk } from "@/lib/utils";
 
 export function Pricing() {
   const lang = useLang((s) => s.lang);
-  const t = DICTS[lang];
+  const t = getTranslation(lang, "pricing");
+  const openBooking = useBooking((s) => s.openWith);
   const openBooking = useBooking((s) => s.openWith);
   const [groupId, setGroupId] = useState<PriceGroupId>("iphone");
   const group = PRICE_GROUPS.find((item) => item.id === groupId) ?? PRICE_GROUPS[0];
