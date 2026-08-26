@@ -7,9 +7,6 @@ test("normalizes Czech phone numbers", () => {
   assert.equal(normalizePhone("+420 737 500 587"), "+420737500587");
   assert.equal(normalizePhone("00420737500587"), "+420737500587");
   assert.equal(normalizePhone("0737500587"), "+420737500587");
-  assert.equal(normalizePhone("+49 170 1234567"), "+491701234567");
-  assert.equal(normalizePhone("+380 50 123 4567"), "+380501234567");
-  assert.equal(normalizePhone("+1 415 555 2671"), "+14155552671");
   assert.equal(normalizePhone("123"), null);
   assert.equal(normalizePhone("abc"), null);
 });

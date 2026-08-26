@@ -1,57 +1,152 @@
-import { getTranslation } from "@/lib/i18n";
-import type { Language } from "@/lib/store";
+import { useEffect, useState, type KeyboardEvent } from "react";
+import { ArrowRight } from "lucide-react";
+import { StatusBadge } from "@/components/status-badge";
+import { Button } from "@/components/ui/button";
+import { DICTS } from "@/lib/i18n";
+import { HERO_REPAIRS, type RepairId } from "@/lib/shop";
+import { useBooking, useLang } from "@/lib/store";
+import { cn, formatCzk } from "@/lib/utils";
 
-export function Hero({ lang }: { lang: Language }) {
-  const t = getTranslation(lang);
+const ALTS = {
+  battery: "altBattery",
+  display: "altDisplay",
+  glass: "altGlass",
+} as const;
+
+export function Hero() {
+  const lang = useLang((s) => s.lang);
+  const t = DICTS[lang];
+  const openBooking = useBooking((s) => s.openWith);
+  const [active, setActive] = useState<RepairId>("display");
+  const current = HERO_REPAIRS.find((item) => item.id === active) ?? HERO_REPAIRS[1];
+
+  function onTabKey(event: KeyboardEvent<HTMLDivElement>) {
+    const index = HERO_REPAIRS.findIndex((item) => item.id === active);
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      setActive(HERO_REPAIRS[(index + 1) % HERO_REPAIRS.length].id);
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setActive(HERO_REPAIRS[(index - 1 + HERO_REPAIRS.length) % HERO_REPAIRS.length].id);
+    }
+  }
+
+  useEffect(() => {
+    const run = () => {
+      for (const item of HERO_REPAIRS) {
+        const img = new Image();
+        img.src = item.image;
+      }
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(run);
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(run, 400);
+    return () => window.clearTimeout(id);
+  }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-        <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent animate-gradient-x">
-          FixArt
-        </h1>
-
-        <p className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed">
-          Premium repair services for your{" "}
-          <span className="font-semibold text-purple-400">{t("hero.from")}</span>{" "}
-          {t("hero.minutes")}
-        </p>
-
-        {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-6 mt-12">
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30 hover:border-purple-400 transition-colors">
-            <div className="text-3xl font-bold text-purple-400 mb-1">98%</div>
-            <div className="text-sm text-gray-400">Success Rate</div>
+    <section className="relative overflow-hidden">
+      <div className="hero-grid pointer-events-none absolute inset-0" aria-hidden />
+      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pt-14 pb-28 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:py-20">
+        <div className="max-w-xl stagger-in">
+          <p className="text-xs font-medium tracking-[0.22em] text-muted">{t.hero.kicker}</p>
+          <h1 className="mt-5 font-semibold tracking-tight text-hero leading-none">
+            <span className="block text-fg">{t.hero.line1}</span>
+            <span className="mt-2 block text-accent">{t.hero.line2}</span>
+          </h1>
+          <div className="mt-6">
+            <StatusBadge lang={lang} />
           </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30 hover:border-blue-400 transition-colors">
-            <div className="text-3xl font-bold text-blue-400 mb-1">&lt;2h</div>
-            <div className="text-sm text-gray-400">Avg Repair Time</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-pink-500/30 hover:border-pink-400 transition-colors">
-            <div className="text-3xl font-bold text-pink-400 mb-1">2yr</div>
-            <div className="text-sm text-gray-400">Warranty</div>
+          <p className="mt-6 max-w-md text-base leading-relaxed text-muted">{t.hero.lead}</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Button size="lg" className="group" onClick={() => openBooking(active)}>
+              {t.hero.cta}
+              <ArrowRight className="transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
+            </Button>
+            <Button size="lg" variant="outline" asChild>
+              <a href="#cenik">{t.hero.prices}</a>
+            </Button>
           </div>
         </div>
 
-        {/* CTA Button */}
-        <button className="mt-12 px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-full shadow-lg shadow-purple-500/30 transition-all duration-300 transform hover:scale-105">
-          Book Now
-        </button>
+        <div className="relative stagger-in">
+          <div className="hero-glow pointer-events-none absolute -inset-8" aria-hidden />
+          <div className="relative rounded-2xl bg-surface p-2 shadow-[var(--shadow-border)]">
+            <div className="relative overflow-hidden rounded-xl bg-bg">
+              <div className="float-photo">
+                {HERO_REPAIRS.map((item) => {
+                  const selected = item.id === active;
+                  return (
+                    <img
+                      key={item.id}
+                      src={item.image}
+                      alt={selected ? t.hero[ALTS[item.id]] : ""}
+                      width={1100}
+                      height={1467}
+                      sizes="(min-width: 1024px) 32rem, 100vw"
+                      fetchPriority={item.id === "display" ? "high" : "low"}
+                      decoding="async"
+                      className={cn(
+                        "media hero-crossfade h-80 w-full object-cover sm:h-96 lg:h-auto lg:aspect-photo",
+                        selected
+                          ? "relative scale-100 opacity-100 blur-0"
+                          : "pointer-events-none absolute inset-0 scale-[1.04] opacity-0 blur-[6px]",
+                      )}
+                    />
+                  );
+                })}
+              </div>
+              <p
+                key={active}
+                className="hero-chip absolute right-3 bottom-3 rounded-md bg-bg/80 px-3 py-1.5 text-sm text-fg shadow-[var(--shadow-border)]"
+              >
+                {t.hero.from} {formatCzk(current.fromPrice, lang)} · {current.minutes} {t.hero.minutes}
+              </p>
+            </div>
+          </div>
+          <div
+            className="mt-4 flex flex-wrap gap-2"
+            role="tablist"
+            aria-label={t.hero.repairsLabel}
+            onKeyDown={onTabKey}
+          >
+            {HERO_REPAIRS.map((item) => {
+              const selected = item.id === active;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => setActive(item.id)}
+                  className={cn(
+                    "h-11 rounded-md px-3.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150",
+                    selected
+                      ? "bg-surface-2 text-fg shadow-[var(--shadow-border)]"
+                      : "bg-transparent text-muted shadow-[var(--shadow-border)] hover:text-fg",
+                  )}
+                >
+                  {t.repairs[item.id]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
-
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-        </svg>
-      </div>
+      <ul className="relative mx-auto grid max-w-6xl grid-cols-2 gap-3 px-4 pb-20 sm:px-6 lg:grid-cols-4 lg:pb-16">
+        {(Object.keys(t.trust) as Array<keyof typeof t.trust>).map((key) => (
+          <li
+            key={key}
+            className="rounded-xl bg-surface px-4 py-3.5 text-sm text-fg shadow-[var(--shadow-border)]"
+          >
+            {t.trust[key]}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

@@ -26,12 +26,7 @@ export function siteDeclaresOgTypeGame(site) {
   return String(site?.type ?? "").toLowerCase() === "x:game";
 }
 
-export function computeBrandWarnings({
-  hasCanvas,
-  workspaceRoot = typeof process !== "undefined" && typeof process.cwd === "function"
-    ? process.cwd()
-    : "/workspace",
-}) {
+export function computeBrandWarnings({ hasCanvas, workspaceRoot = "/workspace" }) {
   const skillPath = join(workspaceRoot, ".grok/skills/og/SKILL.md");
   const sitePath = join(workspaceRoot, OG_SITE_REL_PATH);
   const site = readOgSite(workspaceRoot);

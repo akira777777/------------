@@ -47,12 +47,6 @@ export function BookingForm({
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (defaultService) {
-      setService(defaultService);
-    }
-  }, [defaultService]);
-
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -120,7 +114,7 @@ export function BookingForm({
             type="tel"
             inputMode="tel"
             autoComplete="tel"
-            placeholder={lang === "cs" ? "737 500 587" : "+420 737 500 587"}
+            placeholder="737 500 587"
             required
           />
         </div>

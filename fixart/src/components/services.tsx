@@ -1,9 +1,33 @@
-import { getTranslation } from "@/lib/i18n";
-import type { Language } from "@/lib/store";
+import { Laptop, Search, Usb } from "lucide-react";
+import { Reveal } from "@/components/reveal";
+import { Button } from "@/components/ui/button";
+import { DICTS } from "@/lib/i18n";
+import { FEATURED_SERVICES, MORE_SERVICES } from "@/lib/shop";
+import { useBooking, useLang } from "@/lib/store";
+import { formatCzk } from "@/lib/utils";
 
-export function useServices(lang: Language) {
-  return getTranslation(lang);
-}
+const MORE_ICONS = {
+  port: Usb,
+  macbook: Laptop,
+  diagnostics: Search,
+} as const;
+
+const MORE_LEAD = {
+  port: "portLead",
+  macbook: "macbookLead",
+  diagnostics: "diagnosticsLead",
+} as const;
+
+const FEATURE_LEAD = {
+  battery: "batteryLead",
+  display: "displayLead",
+  glass: "glassLead",
+} as const;
+
+export function Services() {
+  const lang = useLang((s) => s.lang);
+  const t = DICTS[lang];
+  const openBooking = useBooking((s) => s.openWith);
 
   return (
     <section id="opravy" className="scroll-mt-24 py-20">
@@ -22,7 +46,7 @@ export function useServices(lang: Language) {
             >
               <img
                 src={item.image}
-                alt={t.repairs[item.id]}
+                alt=""
                 width={1100}
                 height={825}
                 loading="lazy"
@@ -57,7 +81,7 @@ export function useServices(lang: Language) {
               >
                 <img
                   src={item.image}
-                  alt={t.services[item.id]}
+                  alt=""
                   width={1100}
                   height={825}
                   loading="lazy"
