@@ -191,6 +191,15 @@ const cs = {
     afterKicker: "Před / po",
     afterTitle: "Stejné zařízení. Jeden zásah.",
   },
+  reviews: {
+    kicker: "Recenze",
+    title: "Co říkají zákazníci.",
+    items: [
+      { name: "Jana K.", rating: 5, text: "Vyměnili displej na iPhone 15 Pro za hodinu. Kvalita perfektní, True Tone funguje. Děkuji!", service: "displej" },
+      { name: "Martin S.", rating: 5, text: "Baterie v MacBooku Air drží jako nová. Férová cena, příjemné jednání.", service: "baterie" },
+      { name: "Lucie M.", rating: 5, text: "Rozbité zadní sklo na Samsungu S24 — ani nepoznáte, že bylo opravováno. Doporučuji.", service: "sklo" },
+    ],
+  },
   faq: {
     kicker: "Otázky",
     title: "Než přijdete.",
@@ -460,6 +469,15 @@ const en: Tree = {
     afterKicker: "Before / after",
     afterTitle: "Same device. One repair.",
   },
+  reviews: {
+    kicker: "Reviews",
+    title: "What customers say.",
+    items: [
+      { name: "Jana K.", rating: 5, text: "Replaced my iPhone 15 Pro display in an hour. Perfect quality, True Tone works. Thanks!", service: "display" },
+      { name: "Martin S.", rating: 5, text: "MacBook Air battery lasts like new. Fair price, great service.", service: "battery" },
+      { name: "Lucie M.", rating: 5, text: "Cracked Samsung S24 back glass — you can't tell it was repaired. Highly recommend.", service: "glass" },
+    ],
+  },
   faq: {
     kicker: "FAQ",
     title: "Before you visit.",
@@ -718,6 +736,15 @@ const ru: Tree = {
     altAfter: "Тот же телефон с трещиной слева и после ремонта справа.",
     afterKicker: "До / после",
     afterTitle: "То же устройство. Один ремонт.",
+  },
+  reviews: {
+    kicker: "Отзывы",
+    title: "Что говорят клиенты.",
+    items: [
+      { name: "Яна К.", rating: 5, text: "Заменили дисплей на iPhone 15 Pro за час. Качество отличное, True Tone работает. Спасибо!", service: "дисплей" },
+      { name: "Мартин С.", rating: 5, text: "Батарея в MacBook Air держит как новая. Честная цена, приятное обслуживание.", service: "батарея" },
+      { name: "Люция М.", rating: 5, text: "Разбитое заднее стекло на Samsung S24 — даже не заметно, что ремонтировали. Рекомендую.", service: "стекло" },
+    ],
   },
   faq: {
     kicker: "Вопросы",
