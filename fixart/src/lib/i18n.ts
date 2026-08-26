@@ -8,6 +8,38 @@ export const LANGS: { id: Lang; label: string }[] = [
   { id: "ru", label: "RU" },
 ];
 
+// Helper to safely get nested values from a dictionary object
+function getNested(obj: Record<string, unknown>, keys: string[]): unknown {
+  let current = obj;
+  for (const key of keys) {
+    if (!current || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+export function getTranslation(lang: Lang, keyPath: string): string | undefined {
+  const parts = keyPath.split(".");
+  const value = getNested(DICTS[lang], parts);
+  
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (value && typeof value === "object") {
+    // For objects, try to find a string property that matches the last key
+    const obj = value as Record<string, unknown>;
+    for (const k of Object.keys(obj)) {
+      if (typeof obj[k] === "string") return obj[k];
+    }
+  }
+  
+  return undefined;
+}
+
+export function getTranslationOrFallback(lang: Lang, keyPath: string, fallback?: string): string {
+  const value = getTranslation(lang, keyPath);
+  return value ?? (fallback ?? "");
+}
+
 const cs = {
   metaTitle: "FixArt — servis elektroniky Praha",
   metaDesc:
