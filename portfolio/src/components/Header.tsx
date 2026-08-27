@@ -6,56 +6,6 @@ import { AnimatePresence, motion, useMotionValue, useSpring, useScroll } from "f
 import { Menu, X } from "lucide-react";
 import { siteConfig } from "@/lib/portfolio";
 
-export function AmbientGlow() {
-  const [mounted, setMounted] = useState(false);
-  const [isPointerDevice, setIsPointerDevice] = useState(false);
-  const mouseX = useMotionValue(-1000);
-  const mouseY = useMotionValue(-1000);
-
-  const springX = useSpring(mouseX, { stiffness: 120, damping: 25 });
-  const springY = useSpring(mouseY, { stiffness: 120, damping: 25 });
-
-  const { scrollYProgress } = useScroll();
-
-  useEffect(() => {
-    setMounted(true);
-    const media = window.matchMedia("(hover: hover) and (pointer: fine)");
-    setIsPointerDevice(media.matches);
-
-    const handlePointerMove = (e: PointerEvent) => {
-      mouseX.set(e.clientX);
-      mouseY.set(e.clientY);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [mouseX, mouseY]);
-
-  if (!mounted) return null;
-
-  return (
-    <>
-      {/* Top scroll progress indicator */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[var(--accent)] via-white to-[var(--accent)] origin-left z-50 pointer-events-none"
-        style={{ scaleX: scrollYProgress }}
-      />
-
-      {/* Subtle cursor ambient spotlight (desktop only) */}
-      {isPointerDevice && (
-        <motion.div
-          className="fixed pointer-events-none z-30 w-[450px] h-[450px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[90px] opacity-15"
-          style={{
-            left: springX,
-            top: springY,
-            background: "radial-gradient(circle, rgba(168,183,154,0.35) 0%, rgba(255,255,255,0.08) 40%, transparent 70%)",
-          }}
-        />
-      )}
-    </>
-  );
-}
-
 const links = [
   { href: "/#work", id: "work", label: "Work" },
   { href: "/#practice", id: "practice", label: "Practice" },
@@ -124,9 +74,7 @@ export default function Header() {
   }, []);
 
   return (
-    <>
-      <AmbientGlow />
-      <header className="fixed inset-x-0 top-0 z-50 px-4 py-4 md:px-8">
+    <header className="fixed inset-x-0 top-0 z-50 px-4 py-4 md:px-8">
         <div className="site-shell glass-nav flex items-center justify-between rounded-full px-4 py-3 md:px-6">
           {/* Brand */}
           <Link
@@ -242,6 +190,5 @@ export default function Header() {
           )}
         </AnimatePresence>
       </header>
-    </>
   );
 }
