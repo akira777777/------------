@@ -51,7 +51,7 @@ export default function Hero() {
       {/* Background atmosphere */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-[#0d0d0d] to-[#0a0a0a]" />
 
-      {/* Floating orbs — плавающие атмосферные элементы */}
+      {/* Ambient glow — плавающие атмосферные элементы */}
       {[...Array(5)].map((_, i) => (
         <motion.div
           key={i}

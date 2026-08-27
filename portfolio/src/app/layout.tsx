@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
-import localFont from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./tailwind.css";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
+const geistSans = Geist({
   variable: "--font-geist-sans",
+  subsets: ["latin"],
 });
 
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
+const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
   title: "Portfolio — Графический дизайнер",
-  description: "Портфолио графического дизайнера. Визуальные истории, типографика, коллаж и работа со светом.",
+  description:
+    "Портфолио графического дизайнера. Визуальные истории, типографика, коллаж и работа со светом.",
 };
 
 export default function RootLayout({
@@ -24,9 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="antialiased">
-        {children}
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

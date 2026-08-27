@@ -43,9 +43,8 @@ export default function About() {
         >
           <div className="prose prose-invert max-w-none">
             <p className="text-white/80 leading-relaxed mb-6 font-light">
-              Я графический дизайнер, работающий с визуальными системами. Моя специализация —
+              Я графический дизайнер, работающий с визуальными системами. Моя специализация —{" "}
               <span className="text-white/50 not-italic font-normal ml-2">
-                {" "}
                 постерная графика, коллажность, работа со светом и текстурой, типографические эксперименты.
               </span>
             </p>
@@ -70,7 +69,14 @@ export default function About() {
 
             {/* Tags */}
             <div className="flex flex-wrap gap-2 mt-8">
-              {["графика", "коллаж", "постер", "типографика", "бренд", "фотография"].map((tag) => (
+              {[
+                "графика",
+                "коллаж",
+                "постер",
+                "типографика",
+                "бренд",
+                "фотография",
+              ].map((tag) => (
                 <span
                   key={tag}
                   className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-medium tracking-wide text-white/60 hover:text-white hover:border-white/30 transition-all cursor-default"

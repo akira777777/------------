@@ -87,37 +87,13 @@ export default function Contact() {
           >
             <h3 className="font-display text-xl text-white mb-4">Соцсети</h3>
             <div className="flex flex-wrap gap-3">
-              {[
-                { href: "https://instagram.com", label: "Instagram", icon: (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <rect x="2" y="2" width="20" height="20" rx="5" />
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-                  </svg>
-                )},
-                { href: "https://behance.net", label: "Behance", icon: (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M9 18V5l12-3v13" />
-                    <circle cx="6" cy="18" r="3" />
-                    <circle cx="18" cy="16" r="3" />
-                  </svg>
-                )},
-                { href: "https://dribbble.com", label: "Dribbble", icon: (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <circle cx="12" cy="12" r="10" />
-                    <circle cx="12" cy="12" r="4" />
-                  </svg>
-                )},
-              ].map((link, i) => (
+              {["Behance", "Instagram", "Dribbble"].map((platform) => (
                 <a
-                  key={i}
-                  href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all group"
+                  key={platform}
+                  href={`/${platform.toLowerCase()}`}
+                  className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white hover:border-white/30 hover:bg-white/10 transition-all text-sm font-medium"
                 >
-                  <span className="text-lg">{link.icon}</span>
-                  <span className="text-sm font-medium tracking-wide">{link.label}</span>
+                  {platform}
                 </a>
               ))}
             </div>
@@ -129,14 +105,16 @@ export default function Contact() {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.3 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <form onSubmit={handleSubmit} className="glass-panel p-8 md:p-12">
-            <div className="space-y-6">
+          <h3 className="font-display text-2xl text-white mb-6 text-center">Написать сообщение</h3>
+
+          <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+            <div className="glass-panel rounded-2xl p-6 md:p-8 space-y-4">
               {/* Name */}
               <div>
                 <label htmlFor="name" className="block text-[11px] uppercase tracking-widest text-white/40 mb-2">
-                  Имя
+                  Имя или псевдоним
                 </label>
                 <input
                   id="name"
