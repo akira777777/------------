@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowUp, ArrowUpRight, Check, Copy, Mail } from "lucide-react";
+import { ArrowUp, ArrowUpRight, Check, Copy, Mail, MapPin } from "lucide-react";
 import { siteConfig } from "@/lib/portfolio";
 import { Reveal } from "./Reveal";
+
+const socials = [
+  { name: "Behance", url: "https://behance.net" },
+  { name: "Instagram", url: "https://instagram.com" },
+  { name: "Telegram", url: "https://t.me" },
+  { name: "Are.na", url: "https://are.na" },
+  { name: "LinkedIn", url: "https://linkedin.com" },
+];
 
 export default function Contact() {
   const [copied, setCopied] = useState(false);
@@ -11,15 +19,7 @@ export default function Contact() {
 
   const subject = encodeURIComponent("Project enquiry — Visual identity / 3D");
   const body = encodeURIComponent(
-    `Hi Elizaveta,
-
-I would love to discuss a project with you.
-
-Project details:
-- Timeline:
-- Scope / Deliverables:
-
-Looking forward to hearing from you!`
+    "Hi Elizaveta,\n\nI would love to discuss a project with you.\n\nProject details:\n- Timeline:\n- Scope / Deliverables:\n\nLooking forward to hearing from you!"
   );
   const href = `mailto:${siteConfig.email}?subject=${subject}&body=${body}`;
 
@@ -40,10 +40,26 @@ Looking forward to hearing from you!`
     return () => clearInterval(interval);
   }, []);
 
-  const copyEmail = () => {
-    navigator.clipboard.writeText(siteConfig.email);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const copyEmail = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(siteConfig.email);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = siteConfig.email;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      window.location.href = href;
+    }
   };
 
   const scrollToTop = () => {
@@ -113,11 +129,14 @@ Looking forward to hearing from you!`
 
               {/* Status info */}
               <div className="mt-8 flex flex-wrap items-center gap-6 text-xs text-white/45">
-                <span>Available worldwide / remote</span>
+                <div className="flex items-center gap-2">
+                  <MapPin size={14} />
+                  <span>Prague, Czech Republic</span>
+                </div>
                 {time && (
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
-                    <span>Local time: {time}</span>
+                    <span>Prague Time: {time}</span>
                   </div>
                 )}
               </div>
@@ -128,7 +147,18 @@ Looking forward to hearing from you!`
           <div className="mt-20 pt-8 border-t border-white/10 flex flex-wrap items-center justify-between gap-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mono text-[.6rem] text-white/35 mr-2">Channels:</span>
-              <a href={href} className="mono rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[.6rem] text-white/60 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white" aria-label={`Email ${siteConfig.name}`}>Email ↗</a>
+              {socials.map((s) => (
+                <a
+                  key={s.name}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mono rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[.6rem] text-white/60 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white"
+                  aria-label={`${s.name} Profile`}
+                >
+                  {s.name} ↗
+                </a>
+              ))}
             </div>
 
             <button
@@ -147,7 +177,7 @@ Looking forward to hearing from you!`
               © {new Date().getFullYear()} {siteConfig.name}. All visual works copyright protected.
             </span>
             <span className="mono">
-              Crafted with Next.js & Framer Motion / Remote
+              Crafted with Next.js & Framer Motion / Prague
             </span>
           </div>
         </Reveal>

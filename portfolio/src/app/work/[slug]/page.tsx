@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
-import { getProject, projects } from "@/lib/portfolio";
+import { getProject, projects, siteConfig } from "@/lib/portfolio";
 import { notFound } from "next/navigation";
 
 export function generateStaticParams() {
@@ -18,10 +18,10 @@ export async function generateMetadata({
   const project = getProject(slug);
   if (!project) return {};
   return {
-    title: `${project.title} — Elizaveta Vakalova`,
+    title: project.title,
     description: project.description,
     openGraph: {
-      title: project.title,
+      title: `${project.title} — ${siteConfig.name}`,
       description: project.description,
       images: [project.cover.src],
     },
