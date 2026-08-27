@@ -2,7 +2,6 @@
 
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { projects } from "@/lib/portfolio";
 import WorkCard from "./WorkCard";
 import { Reveal } from "./Reveal";
