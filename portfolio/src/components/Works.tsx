@@ -2,7 +2,8 @@
 
 import WorkCard from "./WorkCard";
 import { motion } from "framer-motion";
-import { ArrowUpRight, ExternalLink, Share2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 const works = [
   {
@@ -125,13 +126,13 @@ export default function Works() {
         transition={{ delay: 0.5, duration: 0.8 }}
         className="container-narrow mt-16 text-center"
       >
-        <a
+        <Link
           href="/#contact"
           className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-medium tracking-wide hover:bg-white/10 hover:border-white/20 transition-all duration-500 group"
         >
           Смотреть все работы
           <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-        </a>
+        </Link>
       </motion.div>
     </section>
   );

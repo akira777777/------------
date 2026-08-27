@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, ExternalLink, Share2 } from "lucide-react";
 import clsx from "clsx";
 
-interface WorkCardProps {
+export type WorkCardProps = {
   id: string;
   title: string;
   category: string;
@@ -13,7 +13,7 @@ interface WorkCardProps {
   subtitle: string;
   image: string;
   link: string;
-}
+};
 
 export default function WorkCard({
   id,
@@ -78,17 +78,19 @@ export default function WorkCard({
           {/* Links */}
           <div className="flex items-center gap-2">
             <Link
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={link || "#"}
+              target={link && link !== "#" ? "_blank" : undefined}
+              rel={link && link !== "#" ? "noopener noreferrer" : undefined}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/30 transition-all group/link"
             >
-              <ExternalLink size={14} className="transition-transform group-hover/link:-translate-x-0.5 group-hover/link:-translate-y-0.5" />
+              <ExternalLink size={14} className="transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
               Live
             </Link>
 
             <Link
-              href={`/work/${id}`}
+              href={link || "#"}
+              target={link && link !== "#" ? "_blank" : undefined}
+              rel={link && link !== "#" ? "noopener noreferrer" : undefined}
               className={clsx(
                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium tracking-wide transition-all",
                 link
@@ -97,7 +99,7 @@ export default function WorkCard({
               )}
             >
               Смотреть проект
-              <ArrowUpRight size={14} className="transition-transform group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ArrowUpRight size={14} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
         </div>

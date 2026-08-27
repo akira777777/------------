@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 const heroVariants = {
   hidden: { opacity: 0, y: 40 },
@@ -130,12 +130,12 @@ export default function Hero() {
             <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full" />
           </Link>
 
-          <a
+          <Link
             href="/#contact"
             className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-transparent border border-white/10 text-white/60 font-medium tracking-wide hover:text-white hover:border-white/30 transition-all duration-500"
           >
             Обсудить проект
-          </a>
+          </Link>
         </motion.div>
 
         {/* Scroll indicator */}

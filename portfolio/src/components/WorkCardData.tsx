@@ -1,4 +1,8 @@
-export const WorkCardData: WorkCardProps[] = [
+import { WorkCardProps } from "./WorkCard";
+
+export type WorkCardDataItem = WorkCardProps;
+
+export const WorkCardData: WorkCardDataItem[] = [
   {
     id: "1",
     title: "NEXUS — Web3 платформа",

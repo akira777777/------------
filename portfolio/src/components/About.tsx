@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Mail, MapPin, Briefcase, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { Mail, MapPin, ArrowUpRight } from "lucide-react";
 
 export default function About() {
   return (
@@ -108,13 +109,13 @@ export default function About() {
             </div>
           </div>
 
-          <motion.a
+          <Link
             href="/#contact"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all group"
           >
             Написать мне
-            <ArrowUpRight size={16} className="transition-transform group-hover:translate-x-1" />
-          </motion.a>
+            <ArrowUpRight size={16} className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+          </Link>
         </motion.div>
       </div>
     </section>
