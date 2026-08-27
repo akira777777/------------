@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Award, Compass, Sparkles } from "lucide-react";
+import { ArrowUpRight, Award, Compass } from "lucide-react";
 import { Reveal } from "./Reveal";
 import { siteConfig } from "@/lib/portfolio";
 
