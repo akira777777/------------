@@ -122,7 +122,7 @@ export default function Hero() {
                 />
               </div>
             </div>
-            <span className="mono absolute -bottom-6 -left-4 text-white/40">Chrome Forms / 03</span>
+            <span className="mono absolute -bottom-6 left-0 text-white/40">Chrome Forms / 03</span>
             <span className="absolute -right-8 top-10 h-16 w-16 rounded-full border border-white/20" />
           </motion.div>
         </div>

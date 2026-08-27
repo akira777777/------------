@@ -166,3 +166,11 @@ export const projects: Project[] = [
 export function getProject(slug: string) {
   return projects.find((project) => project.slug === slug);
 }
+
+export function getAdjacentProjects(slug: string) {
+  const index = projects.findIndex((project) => project.slug === slug);
+  if (index === -1) return { next: null, prev: null };
+  const prev = index > 0 ? projects[index - 1] : projects[projects.length - 1];
+  const next = index < projects.length - 1 ? projects[index + 1] : projects[0];
+  return { next, prev };
+}

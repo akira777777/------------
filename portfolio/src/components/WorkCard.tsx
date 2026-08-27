@@ -6,6 +6,17 @@ import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import type { Project } from "@/lib/portfolio";
 
+export interface WorkCardProps {
+  id?: string;
+  slug?: string;
+  title: string;
+  category: string;
+  description: string;
+  subtitle?: string;
+  image?: string;
+  link?: string;
+}
+
 export default function WorkCard({ project, index }: { project: Project; index: number }) {
   return (
     <motion.article
@@ -93,4 +104,3 @@ export default function WorkCard({ project, index }: { project: Project; index: 
     </motion.article>
   );
 }
-

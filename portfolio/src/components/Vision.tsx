@@ -89,6 +89,7 @@ export default function Vision() {
                 <ArrowUpRight
                   size={20}
                   className="text-white/20 transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-white"
+                  aria-hidden="true"
                 />
               </div>
 
@@ -126,7 +127,7 @@ export default function Vision() {
                   key={item}
                   className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white/80 transition-all duration-300 hover:border-white/25 hover:bg-white/10 hover:text-white"
                 >
-                  <CheckCircle2 size={16} className="text-[var(--accent)] shrink-0" />
+                  <CheckCircle2 size={16} className="text-[var(--accent)] shrink-0" aria-hidden="true" />
                   <span className="text-xs tracking-wide">{item}</span>
                 </div>
               ))}
@@ -137,4 +138,3 @@ export default function Vision() {
     </section>
   );
 }
-

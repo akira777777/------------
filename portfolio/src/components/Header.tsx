@@ -52,8 +52,14 @@ export default function Header() {
 
   useEffect(() => {
     const handleScroll = () => {
+      const scrollY = window.scrollY;
+      if (scrollY < 180) {
+        setActiveSection("");
+        return;
+      }
+
       const sections = ["work", "practice", "about", "contact"];
-      const scrollPosition = window.scrollY + 200;
+      const scrollPosition = scrollY + 240;
 
       for (const section of sections) {
         const el = document.getElementById(section);

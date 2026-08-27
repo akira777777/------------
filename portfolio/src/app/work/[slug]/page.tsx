@@ -141,6 +141,7 @@ export default async function ProjectPage({
                   {media.kind === "video" ? (
                     <video
                       controls
+                      playsInline
                       preload="metadata"
                       poster={media.poster}
                       className="h-auto w-full"

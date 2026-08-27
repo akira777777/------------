@@ -11,7 +11,15 @@ export default function Contact() {
 
   const subject = encodeURIComponent("Project enquiry — Visual identity / 3D");
   const body = encodeURIComponent(
-    `Hi Elizaveta,\n\nI would love to discuss a project with you.\n\nProject details:\n- Timeline:\n- Scope / Deliverables:\n\nLooking forward to hearing from you!`
+    `Hi Elizaveta,
+
+I would love to discuss a project with you.
+
+Project details:
+- Timeline:
+- Scope / Deliverables:
+
+Looking forward to hearing from you!`
   );
   const href = `mailto:${siteConfig.email}?subject=${subject}&body=${body}`;
 
@@ -65,7 +73,7 @@ export default function Contact() {
 
             <div className="max-w-md">
               <p className="text-base leading-relaxed text-white/60">
-                Tell me what you are building, changing, or trying to make people feel. Let’s create something enduring together.
+                Tell me what you are building, changing, or trying to make people feel. Let&apos;s create something enduring together.
               </p>
 
               {/* Action Buttons */}
@@ -74,27 +82,29 @@ export default function Contact() {
                   href={href}
                   className="group inline-flex items-center gap-3 rounded-full bg-[var(--paper)] px-6 py-3.5 text-sm font-medium text-[var(--ink)] transition-all hover:bg-white hover:scale-105 active:scale-95 shadow-lg shadow-white/5"
                 >
-                  <Mail size={16} />
+                  <Mail size={16} aria-hidden="true" />
                   <span>Send Email</span>
                   <ArrowUpRight
                     size={16}
                     className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
+                    aria-hidden="true"
                   />
                 </a>
 
                 <button
                   type="button"
                   onClick={copyEmail}
+                  aria-label={copied ? "Email copied to clipboard" : `Copy email address: ${siteConfig.email}`}
                   className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-3.5 text-sm text-white/80 transition-all hover:border-white/40 hover:bg-white/10 active:scale-95"
                 >
                   {copied ? (
                     <>
-                      <Check size={16} className="text-emerald-400" />
+                      <Check size={16} className="text-emerald-400" aria-hidden="true" />
                       <span className="text-emerald-400 font-medium">Copied to clipboard!</span>
                     </>
                   ) : (
                     <>
-                      <Copy size={15} />
+                      <Copy size={15} aria-hidden="true" />
                       <span>{siteConfig.email}</span>
                     </>
                   )}
@@ -106,7 +116,7 @@ export default function Contact() {
                 <span>Available worldwide / remote</span>
                 {time && (
                   <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
                     <span>Local time: {time}</span>
                   </div>
                 )}
@@ -118,7 +128,7 @@ export default function Contact() {
           <div className="mt-20 pt-8 border-t border-white/10 flex flex-wrap items-center justify-between gap-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mono text-[.6rem] text-white/35 mr-2">Channels:</span>
-              <a href={href} className="mono rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[.6rem] text-white/60 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white">Email ↗</a>
+              <a href={href} className="mono rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[.6rem] text-white/60 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white" aria-label={`Email ${siteConfig.name}`}>Email ↗</a>
             </div>
 
             <button
@@ -127,7 +137,7 @@ export default function Contact() {
               className="mono inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-[.6rem] text-white/60 transition-all hover:border-white hover:text-white active:scale-95"
             >
               <span>Back to top</span>
-              <ArrowUp size={14} />
+              <ArrowUp size={14} aria-hidden="true" />
             </button>
           </div>
 
