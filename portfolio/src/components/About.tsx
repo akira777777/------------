@@ -1,0 +1,6 @@
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
+import { Reveal } from "./Reveal";
+import { siteConfig } from "@/lib/portfolio";
+
+export default function About() { return <section id="about" className="bg-[var(--paper)] py-24 text-[var(--ink)] md:py-36"><div className="section-shell"><Reveal><p className="mono mb-5 text-black/45">04 — About</p><div className="grid gap-12 md:grid-cols-[1fr_.8fr] md:items-end"><h2 className="display max-w-3xl text-5xl leading-[.9] md:text-7xl">I care about the<br /><em className="text-black/45">afterimage.</em></h2><div><p className="text-base leading-relaxed text-black/70">{siteConfig.name} is an independent {siteConfig.role.toLowerCase()} working across visual identities, editorial design, interfaces and image-making.</p><p className="mt-5 text-base leading-relaxed text-black/55">The work usually starts with a question, then becomes a visual system that can live beyond a single screen.</p><Link href="/#contact" className="group mt-8 inline-flex items-center gap-2 border-b border-black/30 pb-2 text-sm">Let’s work together <ArrowUpRight size={16} className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" /></Link></div></div></Reveal></div></section>; }
