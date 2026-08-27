@@ -74,14 +74,30 @@ export default function Hero() {
 
       {/* Hero content */}
       <div className="relative z-10 text-center max-w-5xl mx-auto">
+        {/* Status indicator badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-md mb-8 hover:bg-white/[0.08] transition-colors"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="text-xs font-light tracking-widest uppercase text-white/70">
+            Доступен для новых проектов
+          </span>
+        </motion.div>
+
         {/* Subtitle */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.3 }}
-          className="text-lg md:text-xl text-white/50 font-light tracking-wide mb-6"
+          transition={{ duration: 0.8, delay: 1.1 }}
+          className="text-sm md:text-base text-white/50 font-light tracking-[0.2em] uppercase mb-4"
         >
-          графический дизайнер — визуальный рассказчик
+          графический дизайнер • арт-директор
         </motion.p>
 
         {/* Main heading */}
@@ -89,9 +105,9 @@ export default function Hero() {
           variants={heroVariants}
           initial="hidden"
           animate="visible"
-          className="text-display text-hero text-white mb-8 leading-[0.9] text-balance"
+          className="text-display text-hero text-white mb-8 leading-[0.9] text-balance font-normal"
         >
-          <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white/90 to-white/60">
+          <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white/95 to-white/60">
             создаю
           </span>{" "}
           <motion.span variants={wordVariant(0.1)} className="font-display text-hero text-white">
@@ -106,33 +122,32 @@ export default function Hero() {
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.6 }}
-          className="text-body max-w-xl mx-auto mb-12 text-white/40"
+          transition={{ duration: 0.8, delay: 1.4 }}
+          className="text-body max-w-xl mx-auto mb-10 text-white/40 text-sm md:text-base leading-relaxed"
         >
-          Работаю с формой, светом, текстурой и композицией. Каждый проект — это продолжение предыдущего, шаг вперёд к более точному выражению идеи.
+          Работаю с формой, светом, текстурой и типографикой. Каждый проект — это глубокое погружение в контекст и создание выразительного визуального языка.
         </motion.p>
 
-        {/* CTA */}
+        {/* CTA Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.9 }}
+          transition={{ duration: 0.8, delay: 1.7 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link
             href="/#works"
-            className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-medium tracking-wide hover:bg-white/10 transition-all duration-500 overflow-hidden"
+            className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white text-black font-medium tracking-wide hover:bg-white/90 transition-all duration-300 shadow-lg shadow-white/5"
           >
             <span className="relative z-10 flex items-center gap-2">
               Смотреть работы
               <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
             </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full" />
           </Link>
 
           <Link
             href="/#contact"
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-transparent border border-white/10 text-white/60 font-medium tracking-wide hover:text-white hover:border-white/30 transition-all duration-500"
+            className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white/70 font-medium tracking-wide hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
           >
             Обсудить проект
           </Link>

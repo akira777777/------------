@@ -1,56 +1,72 @@
-import { WorkCardProps } from "./WorkCard";
+export interface WorkItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: string;
+  description: string;
+  image: string;
+  link: string;
+}
 
-export type WorkCardDataItem = WorkCardProps;
-
-export const WorkCardData: WorkCardDataItem[] = [
+export const worksData: WorkItem[] = [
   {
     id: "1",
-    title: "NEXUS — Web3 платформа",
-    category: "Web Application",
+    title: "Ночь в лаборатории",
+    subtitle: "Постер / цифровая коллажность",
+    category: "Постер",
     description:
-      "Децентрализованная платформа для управления цифровыми активами с интеграцией blockchain-адресов, умных контрактов и безопасного хранения ключей.",
-    subtitle: "2024",
-    image: "/images/work/nexus.jpg",
-    link: "https://nexus.app",
+      "Исследование тёмной материи через свет и тень. Работа создана с использованием нейросетевых инструментов и ручной доводки в Photoshop. Формат: 70x100 см, печать на глянцевой бумаге с UV-ламинированием.",
+    image: "https://images.unsplash.com/photo-1550684638-9c3a806e1e89?w=800&q=80",
+    link: "#",
   },
   {
     id: "2",
-    title: "AETHER — Архитектурная студия",
-    category: "Architecture",
+    title: "Кристаллы",
+    subtitle: "Фотография / манипуляция",
+    category: "Фотография",
     description:
-      "Концептуальный проект экологичного жилого комплекса с параметрическим фасадом и системой адаптивной вентиляции.",
-    subtitle: "2023",
-    image: "/images/work/aether.jpg",
-    link: "https://aether.space",
+      "Макро-фотография минералов с многоуровневой обработкой. Эксперимент с прозрачностью, преломлением и внутренним свечением. Изображение построено как объект самостоятельного исследования.",
+    image: "https://images.unsplash.com/photo-1618514753924-1577bd29f2a2?w=800&q=80",
+    link: "#",
   },
   {
     id: "3",
-    title: "VORTEX — AR-навигация",
-    category: "Mobile App",
+    title: "Тень города",
+    subtitle: "Бренд / айдентика",
+    category: "Бренд",
     description:
-      "Приложение дополненной реальности для навигации по историческим районам с 3D-реконструкциями и аудиогидами.",
-    subtitle: "2024",
-    image: "/images/work/vortex.jpg",
-    link: "https://vortex.app",
+      "Система визуального языка для архитектурного бюро. Логотип, гайдлайн, применение в интерьерах и на носителях. Работа о форме и тени как о взаимозависимых началах.",
+    image: "https://images.unsplash.com/photo-1600607686527-6fb866b9b92d?w=800&q=80",
+    link: "#",
   },
   {
     id: "4",
-    title: "OMEGA — Финтех-аналитика",
-    category: "Web Application",
+    title: "Бумажный лес",
+    subtitle: "Коллаж / текстура",
+    category: "Коллаж",
     description:
-      "Платформа аналитики с предиктивными моделями, визуализацией потоков данных и интеграцией с биржевыми API.",
-    subtitle: "2023",
-    image: "/images/work/omega.jpg",
-    link: "https://omega.finance",
+      "Трёхслойная композиция из бумаги, акрила и цифровой обработки. Каждая бумага — это отдельный материал с собственной историей. Работа о памяти, сохранении и разрушении.",
+    image: "https://images.unsplash.com/photo-1541963463532-d6829dfc1d0b?w=800&q=80",
+    link: "#",
   },
   {
     id: "5",
-    title: "PHOENIX — E-commerce",
-    category: "Web Application",
+    title: "Неон",
+    subtitle: "Типографика / свет",
+    category: "Типографика",
     description:
-      "Онлайн-магазин с персонализированными рекомендациями, виртуальной примеркой и интеграцией с логистическими сервисами.",
-    subtitle: "2024",
-    image: "/images/work/phoenix.jpg",
-    link: "https://phoenix.shop",
+      "Эксперимент с неоновыми вывесками и их цифровым двойником. Сетка, ритм, свет — три кита композиции. Работа в формате 24x36 см, выполнена на светодиодах.",
+    image: "https://images.unsplash.com/photo-1550751827-4bd374c7f48a?w=800&q=80",
+    link: "#",
+  },
+  {
+    id: "6",
+    title: "Структура",
+    subtitle: "Геометрия / паттерн",
+    category: "Графика",
+    description:
+      "Генеративный паттерн, построенный на основе математических последовательностей. Каждее повторение — это вариация предыдущего. Работа о порядке и случайности.",
+    image: "https://images.unsplash.com/photo-1507208773363-4b945e5c0bdd?w=800&q=80",
+    link: "#",
   },
 ];
