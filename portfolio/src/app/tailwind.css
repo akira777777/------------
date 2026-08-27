@@ -1,26 +1,23 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ffffff;
-    --muted: #3f3f46;
-    --muted-foreground: #71717a;
-    --border: rgba(255, 255, 255, 0.1);
-    --card: #18181b;
-    --card-foreground: #f4f4f5;
-    --primary: #ffffff;
-    --primary-foreground: #0a0a0a;
-    --secondary: rgba(255, 255, 255, 0.1);
-    --secondary-foreground: #ffffff;
-    --accent: rgba(255, 255, 255, 0.08);
-    --accent-foreground: #ffffff;
-    --destructive: #ef4444;
-    --destructive-foreground: #f4f4f5;
-    --ring: rgba(255, 255, 255, 0.2);
-    --radius: 0.75rem;
-  }
+@custom-var --background: #0a0a0a;
+@custom-var --foreground: #ffffff;
+@custom-var --muted: #3f3f46;
+@custom-var --muted-foreground: #71717a;
+@custom-var --border: rgba(255, 255, 255, 0.1);
+@custom-var --card: #18181b;
+@custom-var --card-foreground: #f4f4f5;
+@custom-var --primary: #ffffff;
+@custom-var --primary-foreground: #0a0a0a;
+@custom-var --secondary: rgba(255, 255, 255, 0.1);
+@custom-var --secondary-foreground: #ffffff;
+@custom-var --accent: rgba(255, 255, 255, 0.08);
+@custom-var --accent-foreground: #ffffff;
+@custom-var --destructive: #ef4444;
+@custom-var --destructive-foreground: #f4f4f5;
+@custom-var --ring: rgba(255, 255, 255, 0.2);
 
+@layer base {
   * {
     border-color: var(--border);
   }
@@ -30,8 +27,6 @@
   }
 
   body {
-    background: var(--background);
-    color: var(--foreground);
     font-feature-settings: "rlig" 1, "calt" 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -81,15 +76,9 @@
   }
 
   @keyframes ambient {
-    0% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-    100% {
-      transform: translateY(0);
-    }
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0); }
   }
 
   .line-clamp-3 {

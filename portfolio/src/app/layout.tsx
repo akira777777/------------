@@ -1,44 +1,30 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
-import "./globals.css";
+import localFont from "next/font/google";
+import "./tailwind.css";
 
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
+const geistSans = localFont({
+  src: "./fonts/GeistVF.woff",
+  variable: "--font-geist-sans",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
+const geistMono = localFont({
+  src: "./fonts/GeistMonoVF.woff",
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
-  title: "Имя Фамилия | Графический дизайнер",
-  description:
-    "Портфолио графического дизайнера — визуальные истории, постерная графика, коллаж, типографика. Работы в стиле glassmorphism и глубокой эстетики.",
-  keywords: ["графический дизайн", "постер", "коллаж", "типографика", "бренд"],
+  title: "Portfolio — Графический дизайнер",
+  description: "Портфолио графического дизайнера. Визуальные истории, типографика, коллаж и работа со светом.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html lang="ru" className="antialiased">
-      <body
-        className={`${playfair.variable} ${inter.variable} font-body bg-[#0a0a0a] text-white min-h-screen`}
-      >
-        {/* Noise overlay — атмосферная текстура */}
-        <div className="noise-overlay" aria-hidden="true" />
-
-        {/* Ambient background glow */}
-        <div className="ambient-glow pointer-events-none" />
-        <div className="ambient-glow pointer-events-none" />
-
-        {/* Main content */}
+    <html lang="ru" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>
