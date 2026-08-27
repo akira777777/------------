@@ -10,11 +10,9 @@ interface WorkCardProps {
   title: string;
   category: string;
   description: string;
-  images: { src: string; alt: string }[];
-  year: number;
-  tags: string[];
-  client?: string;
-  externalLink?: string;
+  subtitle: string;
+  image: string;
+  link: string;
 }
 
 export default function WorkCard({
@@ -22,11 +20,9 @@ export default function WorkCard({
   title,
   category,
   description,
-  images,
-  year,
-  tags,
-  client,
-  externalLink,
+  subtitle,
+  image,
+  link,
 }: WorkCardProps) {
   return (
     <motion.div
@@ -38,20 +34,18 @@ export default function WorkCard({
       {/* Background gradient that shifts on hover */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
-      {/* Image gallery with lazy loading */}
+      {/* Image with lazy loading */}
       <div className="relative aspect-[3/2] w-full overflow-hidden">
-        {images.map((img, i) => (
-          <motion.img
-            key={i}
-            src={img.src}
-            alt={img.alt}
-            loading={i === 0 ? "eager" : "lazy"}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            style={{ opacity: i === 0 ? 1 : 0.6, zIndex: i }}
-            whileHover={{ scale: 1.1 }}
-            transition={{ duration: 0.5 }}
-          />
-        ))}
+        <motion.img
+          key={id}
+          src={image}
+          alt={title}
+          loading="eager"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          style={{ zIndex: 0 }}
+          whileHover={{ scale: 1.1 }}
+          transition={{ duration: 0.5 }}
+        />
 
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f11] via-[#0f0f11]/20 to-transparent" />
@@ -71,15 +65,9 @@ export default function WorkCard({
             {title}
           </h3>
 
-          {/* Meta */}
+          {/* Subtitle (year) */}
           <div className="flex items-center gap-3 text-[11px] text-white/40 uppercase tracking-wider mb-3">
-            <span>{year}</span>
-            {client && (
-              <>
-                <span>•</span>
-                <span>{client}</span>
-              </>
-            )}
+            <span>{subtitle}</span>
           </div>
 
           {/* Description */}
@@ -87,37 +75,23 @@ export default function WorkCard({
             {description}
           </p>
 
-          {/* Tags */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {tags.map((tag, i) => (
-              <span
-                key={i}
-                className="px-2 py-0.5 rounded-md bg-white/3 border border-white/8 text-[9px] font-medium tracking-wide text-white/70 hover:text-white hover:border-white/40 transition-all cursor-default"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-
           {/* Links */}
           <div className="flex items-center gap-2">
-            {externalLink ? (
-              <Link
-                href={externalLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/30 transition-all group/link"
-              >
-                <ExternalLink size={14} className="transition-transform group-hover/link:-translate-x-0.5 group-hover/link:-translate-y-0.5" />
-                Live
-              </Link>
-            ) : null}
+            <Link
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/30 transition-all group/link"
+            >
+              <ExternalLink size={14} className="transition-transform group-hover/link:-translate-x-0.5 group-hover/link:-translate-y-0.5" />
+              Live
+            </Link>
 
             <Link
               href={`/work/${id}`}
               className={clsx(
                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium tracking-wide transition-all",
-                externalLink
+                link
                   ? "bg-white/5 border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/30"
                   : "bg-white text-black hover:bg-white/90"
               )}
