@@ -124,7 +124,7 @@ export default function Header() {
 
             <Link
               href="/#contact"
-              className="mono hidden rounded-full bg-[var(--paper)] px-4 py-2 text-[.6rem] text-[var(--ink)] transition-all hover:bg-white hover:shadow-lg hover:shadow-white/10 md:block active:scale-95"
+              className="mono hidden rounded-full bg-[var(--paper)] px-4 py-2 text-[.6rem] text-black transition-all hover:bg-white hover:shadow-lg hover:shadow-white/10 md:block active:scale-95"
             >
               Start a project ↗
             </Link>

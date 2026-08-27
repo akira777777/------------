@@ -86,7 +86,7 @@ export default function Hero() {
             >
               <Link
                 href="/#work"
-                className="group inline-flex items-center gap-3 rounded-full bg-[var(--paper)] px-5 py-3 text-sm text-[var(--ink)] transition-transform hover:-translate-y-1"
+                className="group inline-flex items-center gap-3 rounded-full bg-[var(--paper)] px-5 py-3 text-sm text-black transition-transform hover:-translate-y-1"
               >
                 View selected work{" "}
                 <ArrowUpRight
