@@ -15,10 +15,10 @@ const tools = [
 ];
 
 const highlights = [
-  { label: "Location", value: "Prague, CZ / Remote" },
+  { label: "Location", value: "Europe / Remote" },
   { label: "Experience", value: "5+ Years Practice" },
   { label: "Focus", value: "3D, Editorial & Identity" },
-  { label: "Status", value: "Open for Q1/Q2 2025" },
+  { label: "Status", value: "Open for new commissions" },
 ];
 
 export default function About() {
@@ -109,4 +109,3 @@ export default function About() {
     </section>
   );
 }
-

@@ -1,17 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowUp, ArrowUpRight, Check, Copy, Mail, MapPin } from "lucide-react";
+import { ArrowUp, ArrowUpRight, Check, Copy, Mail } from "lucide-react";
 import { siteConfig } from "@/lib/portfolio";
 import { Reveal } from "./Reveal";
-
-const socials = [
-  { name: "Behance", url: "https://behance.net" },
-  { name: "Instagram", url: "https://instagram.com" },
-  { name: "Telegram", url: "https://t.me" },
-  { name: "Are.na", url: "https://are.na" },
-  { name: "LinkedIn", url: "https://linkedin.com" },
-];
 
 export default function Contact() {
   const [copied, setCopied] = useState(false);
@@ -111,14 +103,11 @@ export default function Contact() {
 
               {/* Status info */}
               <div className="mt-8 flex flex-wrap items-center gap-6 text-xs text-white/45">
-                <div className="flex items-center gap-2">
-                  <MapPin size={14} />
-                  <span>Prague, Czech Republic</span>
-                </div>
+                <span>Available worldwide / remote</span>
                 {time && (
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Prague Time: {time}</span>
+                    <span>Local time: {time}</span>
                   </div>
                 )}
               </div>
@@ -129,17 +118,7 @@ export default function Contact() {
           <div className="mt-20 pt-8 border-t border-white/10 flex flex-wrap items-center justify-between gap-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mono text-[.6rem] text-white/35 mr-2">Channels:</span>
-              {socials.map((s) => (
-                <a
-                  key={s.name}
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mono rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[.6rem] text-white/60 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white"
-                >
-                  {s.name} ↗
-                </a>
-              ))}
+              <a href={href} className="mono rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[.6rem] text-white/60 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white">Email ↗</a>
             </div>
 
             <button
@@ -158,7 +137,7 @@ export default function Contact() {
               © {new Date().getFullYear()} {siteConfig.name}. All visual works copyright protected.
             </span>
             <span className="mono">
-              Crafted with Next.js & Framer Motion / Central Europe
+              Crafted with Next.js & Framer Motion / Remote
             </span>
           </div>
         </Reveal>
@@ -166,4 +145,3 @@ export default function Contact() {
     </footer>
   );
 }
-

@@ -8,7 +8,6 @@ const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://portfolio.local"),
   title: { default: `${siteConfig.name} — ${siteConfig.role}`, template: `%s — ${siteConfig.name}` },
   description: siteConfig.description,
   keywords: ["graphic design", "art direction", "editorial design", "Elizaveta Vakalova"],

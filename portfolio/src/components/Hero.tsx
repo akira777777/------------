@@ -49,7 +49,7 @@ export default function Hero() {
         <div className="grid items-center gap-10 py-16 md:grid-cols-[1.15fr_.85fr] md:gap-16">
           <div>
             <motion.p
-              initial={{ opacity: 0, y: 15 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
               className="mono mb-6 text-[var(--accent)]"
@@ -58,7 +58,7 @@ export default function Hero() {
             </motion.p>
 
             <motion.h1
-              initial={{ opacity: 0, y: 35 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 0.12 }}
               className="display max-w-4xl text-[clamp(4rem,10vw,9.5rem)] leading-[.82]"
@@ -69,7 +69,7 @@ export default function Hero() {
             </motion.h1>
 
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
               className="mt-8 max-w-md text-base leading-relaxed text-white/55"
@@ -79,7 +79,7 @@ export default function Hero() {
             </motion.p>
 
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.45 }}
               className="mt-9 flex flex-wrap gap-3"
@@ -105,7 +105,7 @@ export default function Hero() {
 
           <motion.div
             style={reduced ? undefined : { x: imageX, y: imageY }}
-            initial={{ opacity: 0, scale: 0.88, rotate: 5 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             transition={{ duration: 1.2, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="relative mx-auto aspect-[.82] w-[min(78vw,430px)]"
