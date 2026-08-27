@@ -81,15 +81,9 @@
   }
 
   @keyframes ambient {
-    0% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-    100% {
-      transform: translateY(0);
-    }
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0); }
   }
 
   .line-clamp-3 {
@@ -101,5 +95,21 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  .text-hero {
+    font-size: clamp(4.5rem, 8vw, 9rem);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+
+  .text-display {
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+  }
+
+  .text-body {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 1rem;
+    line-height: 1.6;
   }
 }
